@@ -36,7 +36,7 @@ class _ProfileScreenState extends State<ProfileScreen>
         ModalRoute.of(context)!.settings.arguments as ProfileScreenArguments;
     final username = args.username;
 
-    var api = context.watch<Api>();
+    final api = context.watch<Api>();
     final userInfo = api.userInfo[username];
     if (userInfo == null) {
       api.getUserInfo(username);

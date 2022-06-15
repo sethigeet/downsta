@@ -50,7 +50,7 @@ class _PostsState extends State<Posts> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    var api = context.watch<Api>();
+    final api = context.watch<Api>();
     final userInfo = api.userInfo[widget.username];
     if (userInfo == null) {
       // it is already being requested by the `parent` so no need to request again!

@@ -1,5 +1,6 @@
 import 'dart:async';
 
+import 'package:downsta/screens/login.dart';
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -16,8 +17,8 @@ Future main() async {
   runApp(
     MultiProvider(
       providers: [
-        // TODO: Get the correct username after loggin in!
-        ChangeNotifierProvider.value(value: await Api.create(""))
+        // TODO: Save the username to the disk and add support for multiple users
+        ChangeNotifierProvider.value(value: await Api.create("<username>"))
       ],
       child: const MyApp(),
     ),
@@ -35,8 +36,9 @@ class MyApp extends StatelessWidget {
         colorSchemeSeed: Colors.deepPurple,
         brightness: Brightness.dark,
       ),
-      initialRoute: "/",
+      initialRoute: LoginScreen.routeName,
       routes: {
+        LoginScreen.routeName: (_) => const LoginScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
         PostScreen.routeName: (_) => const PostScreen(),

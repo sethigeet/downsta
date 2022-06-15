@@ -10,7 +10,7 @@ import 'package:downsta/utils.dart';
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
 
-  static const routeName = "/";
+  static const routeName = "/home";
 
   @override
   State<HomeScreen> createState() => _HomeScreenState();
@@ -21,7 +21,7 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
-    var api = context.watch<Api>();
+    final api = context.watch<Api>();
     if (api.following == null) {
       api.getFollowing();
 
