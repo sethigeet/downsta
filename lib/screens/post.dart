@@ -2,6 +2,7 @@ import 'dart:math';
 
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
+import 'package:flutter/services.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
@@ -9,7 +10,6 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 
 import 'package:downsta/utils.dart';
-import 'package:flutter/services.dart';
 
 class PostsScrollBehavior extends MaterialScrollBehavior {
   @override
@@ -51,6 +51,11 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     _keyboardScrollFocusNode.dispose();
+
+    // reset the display state
+    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+        overlays: SystemUiOverlay.values);
+
     super.dispose();
   }
 
@@ -92,8 +97,16 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               ))
           : null,
       body: GestureDetector(
-        onTap: () =>
-            setState(() => _currentOpacity = _currentOpacity > 0 ? 0 : 1),
+        onTap: () {
+          if (_currentOpacity > 0) {
+            setState(() => _currentOpacity = 0);
+            SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
+          } else {
+            setState(() => _currentOpacity = 1);
+            SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
+                overlays: SystemUiOverlay.values);
+          }
+        },
         child: Stack(
           alignment: Alignment.bottomCenter,
           children: [
@@ -164,8 +177,6 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                 },
                 child: PhotoViewGallery.builder(
                   itemCount: images.length,
-                  // scrollBehavior: PostsScrollBehavior(),
-                  enableRotation: true,
                   scrollPhysics: const BouncingScrollPhysics(
                       parent: AlwaysScrollableScrollPhysics()),
                   pageController: _pageController,
@@ -213,7 +224,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               opacity: _currentOpacity,
               duration: _animationDuration,
               child: Container(
-                color: theme.dialogBackgroundColor,
+                color: theme.dialogBackgroundColor.withAlpha(150),
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: buildIndicators(images.length),
               ),
@@ -228,9 +239,11 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
     return SmoothPageIndicator(
       controller: _pageController,
       count: imagesLength,
-      effect: const ScrollingDotsEffect(
+      effect: ScrollingDotsEffect(
         dotWidth: 10,
         dotHeight: 10,
+        dotColor: Colors.grey.shade800,
+        activeDotColor: Colors.deepPurple.shade900,
       ),
       onDotClicked: (index) => _pageController.animateToPage(
         index,
