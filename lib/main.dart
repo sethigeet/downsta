@@ -22,9 +22,9 @@ Future main() async {
     final loggedInUsers = await db.getLoggedInUsers();
     if (loggedInUsers.isEmpty) {
       lastLoggedInUser = "";
+    } else {
+      lastLoggedInUser = loggedInUsers[0];
     }
-
-    lastLoggedInUser = loggedInUsers[0];
   }
 
   runApp(

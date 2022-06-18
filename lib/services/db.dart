@@ -31,7 +31,11 @@ class DB with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<List<String>> getLoggedInUsers() async {
     final usersBox = await collection.openBox("users");
-    final List<dynamic> loggedInUsers = await usersBox.get("loggedInUsers");
+    List<dynamic>? loggedInUsers = await usersBox.get("loggedInUsers");
+    if (loggedInUsers == null) {
+      await usersBox.put("loggedInUsers", []);
+      loggedInUsers = [];
+    }
     return loggedInUsers.cast<String>();
   }
 
