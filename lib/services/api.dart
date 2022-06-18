@@ -1,12 +1,13 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:downsta/services/db.dart';
 import 'package:flutter/foundation.dart';
 
 import 'package:cookie_jar/cookie_jar.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:path_provider/path_provider.dart';
+import 'package:downsta/utils.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 final cookieSplitRegex = RegExp(r',(?=[^ ])');
@@ -33,28 +34,27 @@ abstract class URLS {
 
 class Api with ChangeNotifier, DiagnosticableTreeMixin {
   final http.Client client = http.Client();
-  final PersistCookieJar cookieJar;
+  final DB db;
+  PersistCookieJar cookieJar;
   String _csrfToken;
 
-  List<dynamic>? following;
+  Map<String, dynamic>? following;
   Map<String, dynamic> userInfo = {};
   bool? isLoggedIn;
 
   String username;
 
-  Api(this.username, this.cookieJar, this._csrfToken);
+  Api(this.username, this.cookieJar, this.db, this._csrfToken);
 
-  static Future<Api> create(String username) async {
-    Directory dir;
-    if (Platform.isAndroid) {
-      dir = (await getExternalStorageDirectory())!;
-    } else {
-      dir = await getApplicationSupportDirectory();
-    }
-    final cookieJar = PersistCookieJar(
-        storage: FileStorage("${dir.path}/session-cookies-$username"));
+  static Future<PersistCookieJar> getCookieJar(String username) async {
+    final dir = await getAppDataStorageDir();
+    return PersistCookieJar(
+        storage: FileStorage("$dir/session-cookies-$username"));
+  }
 
-    return Api(username, cookieJar, "");
+  static Future<Api> create(String username, DB db) async {
+    final cookieJar = await Api.getCookieJar(username);
+    return Api(username, cookieJar, db, "");
   }
 
   Future<bool> getIsLoggedIn() async {
@@ -114,12 +114,24 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return true;
   }
 
-  Future<String?> login(String username, String password) async {
-    if (isLoggedIn != null && isLoggedIn!) {
-      return null;
-    }
+  Future<void> switchUser(String username) async {
+    this.username = username;
+    cookieJar = await Api.getCookieJar(username);
+    userInfo = {};
+    following = null;
 
-    final csrfRes = await getWindowSharedData(URLS.csrfToken);
+    await db.setLastLoggedInUser(username);
+
+    notifyListeners();
+  }
+
+  Future<String?> login(String username, String password) async {
+    isLoggedIn = null;
+
+    final csrfRes = await getWindowSharedData(
+      URLS.csrfToken,
+      sendCookies: false,
+    );
     _csrfToken = csrfRes["config"]["csrf_token"];
 
     sleep(const Duration(seconds: 1));
@@ -131,7 +143,6 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       host: "www.instagram.com",
       path: URLS.login,
     );
-    final cookies = await cookieJar.loadForRequest(uri);
     final res = await client.post(
       uri,
       headers: {
@@ -140,8 +151,6 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         HttpHeaders.refererHeader: "https://www.instagram.com/",
         HttpHeaders.userAgentHeader:
             "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
-        HttpHeaders.cookieHeader:
-            cookies.map((cookie) => cookie.toString()).join("; "),
         "X-CSRFToken": _csrfToken,
       },
       body: {
@@ -169,8 +178,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       }
     }
 
-    this.username = username;
+    isLoggedIn = true;
     saveCookies(uri, res.headers["set-cookie"]);
+    await switchUser(username);
 
     return null;
   }
@@ -193,30 +203,53 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return info;
   }
 
-  Future<String> getUserId(String username, {bool? force}) async {
+  Future<String> getUserId(
+    String username, {
+    bool? force,
+  }) async {
     if ((force == null || !force) && userInfo[username] != null) {
       return userInfo[username]["id"];
     }
 
-    var info = await getUserInfo(username, force: force);
+    var info = await getUserInfo(
+      username,
+      force: force,
+    );
     return info["id"];
   }
 
-  Future<List<dynamic>> getFollowing({bool? force}) async {
-    if ((force == null || !force) && this.following != null) {
-      return this.following!;
+  Future<Map<String, dynamic>> getFollowing({
+    bool? force,
+  }) async {
+    if ((force == null || !force) && following != null) {
+      return following!;
     }
 
     var userId = await getUserId(username);
-    var res =
-        await getMobileJson(URLS.following.replaceAll("{USERID}", userId));
+    var res = await getGQLJson(
+      "58712303d941c6855d4e888c5f0cd22f",
+      {"id": userId, "first": 25},
+    );
 
-    var following = res["users"];
-    this.following = following;
+    following = res["data"]["user"]["edge_follow"];
 
     notifyListeners();
 
-    return following;
+    return following!;
+  }
+
+  Future<Map<String, dynamic>> getMoreFollowing(String endCursor) async {
+    final userId = userInfo[username]["id"];
+    var res = await getGQLJson("58712303d941c6855d4e888c5f0cd22f",
+        {"id": userId, "first": 25, "after": endCursor});
+    var following = res["data"]["user"]["edge_follow"];
+
+    this.following!["page_info"] = following["page_info"];
+    this.following!["edges"].addAll(following["edges"]);
+
+    notifyListeners();
+
+    return this.following!;
   }
 
   Future<Map<String, dynamic>> getMorePosts(
@@ -274,7 +307,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<dynamic> getWindowSharedData(String path,
       {String host = "www.instagram.com",
-      Map<String, dynamic>? queryParameters}) async {
+      Map<String, dynamic>? queryParameters,
+      bool? sendCookies}) async {
     var uri = Uri(
         scheme: "https",
         host: host,
@@ -291,8 +325,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
           :
           // user agent should be mobile
           "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)",
-      HttpHeaders.cookieHeader:
-          cookies.map((cookie) => cookie.toString()).join("; "),
+      HttpHeaders.cookieHeader: sendCookies != null && sendCookies
+          ? cookies.map((cookie) => cookie.toString()).join("; ")
+          : "",
       // "X-CSRFToken": _csrfToken,
     });
 

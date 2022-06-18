@@ -6,9 +6,11 @@ import 'package:downsta/screens/home.dart';
 import 'package:downsta/services/api.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
+  const LoginScreen({Key? key, this.addingUser}) : super(key: key);
 
   static const routeName = "/login";
+
+  final bool? addingUser;
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -24,6 +26,11 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   void initState() {
     super.initState();
+
+    if (widget.addingUser != null && widget.addingUser!) {
+      loading = false;
+      return;
+    }
 
     final api = Provider.of<Api>(context, listen: false);
     api.getIsLoggedIn().then((res) {
@@ -143,16 +150,18 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    ScaffoldMessenger.of(context).showSnackBar(
+    final snackbarController = ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text("Trying to log in..."),
         backgroundColor: Theme.of(context).colorScheme.primary,
+        duration: const Duration(days: 365),
       ),
     );
 
     final api = Provider.of<Api>(context, listen: false);
     final res = await api.login(
         _usernameFieldController.text, _passwordFieldController.text);
+    snackbarController.close();
     if (res == null) {
       gotoHomeScreen();
       return;
