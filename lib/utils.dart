@@ -17,3 +17,13 @@ Future<String> getAppDataStorageDir() async {
 
   return dir.path;
 }
+
+Future<String> getDownloadsDir() async {
+  if (Platform.isAndroid) {
+    return "/storage/emulated/0";
+  } else if (Platform.isIOS) {
+    throw UnimplementedError("IOS downloads directory is not known!");
+  }
+
+  return (await getDownloadsDirectory())!.path;
+}

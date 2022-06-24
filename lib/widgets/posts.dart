@@ -91,7 +91,8 @@ class _PostsState extends State<Posts> {
                 Navigator.pushNamed(
                   context,
                   "/post",
-                  arguments: PostScreenArguments(post: post),
+                  arguments: PostScreenArguments(
+                      post: post, username: post["owner"]["username"]),
                 );
               },
               child: CachedNetworkImage(

@@ -1,3 +1,4 @@
+import 'package:downsta/globals.dart';
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -8,6 +9,7 @@ import "package:downsta/screens/profile.dart";
 import 'package:downsta/screens/post.dart';
 import 'package:downsta/services/api.dart';
 import 'package:downsta/services/db.dart';
+import 'package:downsta/services/downloader.dart';
 
 Future main() async {
   // NOTE: This is required for `path_provider` to work properly!
@@ -30,10 +32,10 @@ Future main() async {
   runApp(
     MultiProvider(
       providers: [
-        // TODO: Save the username to the disk and add support for multiple users
         ChangeNotifierProvider.value(
             value: await Api.create(lastLoggedInUser, db)),
-        ChangeNotifierProvider.value(value: db)
+        ChangeNotifierProvider.value(value: db),
+        ChangeNotifierProvider.value(value: await Downloader.create(db))
       ],
       child: const MyApp(),
     ),
@@ -47,6 +49,7 @@ class MyApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Downsta',
+      scaffoldMessengerKey: scaffoldMessengerKey,
       theme: ThemeData(
         colorSchemeSeed: Colors.deepPurple,
         brightness: Brightness.dark,

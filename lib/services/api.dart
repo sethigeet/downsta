@@ -18,6 +18,8 @@ abstract class URLS {
   // data={"enc_password": enc_password, "username": USERNAME} desktop
   static const login = "/accounts/login/ajax/";
   static const loginCheck = "/accounts/login/";
+  // data={"user_id": <user-id>} desktop
+  static const logout = "/accounts/logout/ajax/";
 
   // data={"target_user_id": "<userid>"} mobile
   static const reels = "/api/v1/clips/user/";

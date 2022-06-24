@@ -8,7 +8,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
+import 'package:provider/provider.dart';
 
+import 'package:downsta/services/downloader.dart';
 import 'package:downsta/utils.dart';
 
 class PostsScrollBehavior extends MaterialScrollBehavior {
@@ -24,8 +26,12 @@ class PostsScrollBehavior extends MaterialScrollBehavior {
 
 class PostScreenArguments {
   dynamic post;
+  String username;
 
-  PostScreenArguments({required this.post});
+  PostScreenArguments({
+    required this.post,
+    required this.username,
+  });
 }
 
 class PostScreen extends StatefulWidget {
@@ -66,6 +72,8 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
     final theme = Theme.of(context);
     final post = args.post;
 
+    final downloader = context.watch<Downloader>();
+
     List<String> images = [];
     if (post["edge_sidecar_to_children"] != null) {
       images.addAll(List<String>.from(post["edge_sidecar_to_children"]["edges"]
@@ -87,14 +95,54 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
       floatingActionButton: _currentOpacity == 1
           ? Container(
               decoration: BoxDecoration(
+                color: theme.colorScheme.primary,
                 borderRadius: BorderRadius.circular(25),
-                color: Colors.red[300],
               ),
               margin: const EdgeInsets.symmetric(vertical: 25),
-              child: IconButton(
-                icon: const Icon(Icons.download),
-                onPressed: () {},
-              ))
+              child: Material(
+                color: Colors.transparent,
+                child: InkWell(
+                  splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
+                  borderRadius: BorderRadius.circular(25),
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                  onLongPress: () async {
+                    final toDownload = await showModalBottomSheet<List<String>>(
+                        context: context,
+                        builder: (context) {
+                          return SizedBox(
+                            height: 100,
+                            child: Column(children: [
+                              ListTile(
+                                onTap: () => Navigator.pop(context, [
+                                  images[(_pageController.page ?? 0).floor()]
+                                ]),
+                                title: const Text("Download current image"),
+                                leading: const Icon(Icons.image),
+                              ),
+                              ListTile(
+                                  onTap: () => Navigator.pop(context, images),
+                                  title: const Text("Download entire post"),
+                                  leading: const Icon(Icons.collections)),
+                            ]),
+                          );
+                        });
+
+                    if (toDownload != null) {
+                      downloader.download(toDownload, args.username);
+                    }
+                  },
+                  onTap: () {
+                    downloader.download(images, args.username);
+                  },
+                ),
+              ),
+            )
           : null,
       body: GestureDetector(
         onTap: () {
@@ -224,7 +272,6 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               opacity: _currentOpacity,
               duration: _animationDuration,
               child: Container(
-                color: theme.dialogBackgroundColor.withAlpha(150),
                 padding: const EdgeInsets.symmetric(vertical: 7),
                 child: buildIndicators(images.length),
               ),
