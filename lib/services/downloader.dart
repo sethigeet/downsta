@@ -37,9 +37,15 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
   void download(List<String> urls, String username) {
     queue.addAll(urls.map((url) {
       final nameSegs = Uri.parse(url).pathSegments.last.split("_");
+      var ext = nameSegs.last.split(".").last;
+      // NOTE: For some reason, instagram names `jpg` files with the `webp` extension
+      //       So, replace `webp` with `jpg`
+      ext = ext == "webp" ? "jpg" : ext;
       // File Name -> <username>_<unique_id>.<file_extension>
-      return DownloadItem(url,
-          "${username}_${nameSegs[nameSegs.length - 2]}.${nameSegs.last.split(".").last}");
+      return DownloadItem(
+        url,
+        "${username}_${nameSegs[nameSegs.length - 2]}.$ext",
+      );
     }).toList());
 
     if (!running) {
