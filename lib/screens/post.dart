@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:downsta/models/history_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -11,6 +12,7 @@ import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:provider/provider.dart';
 
 import 'package:downsta/services/downloader.dart';
+import 'package:downsta/services/db.dart';
 import 'package:downsta/utils.dart';
 
 class PostsScrollBehavior extends MaterialScrollBehavior {
@@ -67,6 +69,8 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final db = Provider.of<DB>(context, listen: false);
+
     final args =
         ModalRoute.of(context)!.settings.arguments as PostScreenArguments;
     final theme = Theme.of(context);
@@ -134,11 +138,25 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                         });
 
                     if (toDownload != null) {
+                      if (toDownload.length > 1) {
+                        db.saveItemToHistory(HistoryItem.create(
+                          postId: post["id"],
+                          coverImgUrl: post["display_url"],
+                          imageUrls: images,
+                          username: post["owner"]["username"],
+                        ));
+                      }
                       downloader.download(toDownload, args.username);
                     }
                   },
                   onTap: () {
                     downloader.download(images, args.username);
+                    db.saveItemToHistory(HistoryItem.create(
+                      postId: post["id"],
+                      coverImgUrl: post["display_url"],
+                      imageUrls: images,
+                      username: post["owner"]["username"],
+                    ));
                   },
                 ),
               ),

@@ -29,7 +29,13 @@ class ProfileHeader extends StatelessWidget {
         child: GestureDetector(
           onTap: () => Navigator.pushNamed(context, PostScreen.routeName,
               arguments: PostScreenArguments(
-                  post: {"display_url": profilePicUrlHd}, username: username)),
+                post: {
+                  "display_url": profilePicUrlHd,
+                  "id":
+                      "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}"
+                },
+                username: username,
+              )),
           child: CircleAvatar(
             backgroundImage: CachedNetworkImageProvider(
               profilePicUrl,

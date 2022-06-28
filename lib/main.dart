@@ -7,6 +7,7 @@ import 'package:downsta/screens/login.dart';
 import "package:downsta/screens/home.dart";
 import "package:downsta/screens/profile.dart";
 import 'package:downsta/screens/post.dart';
+import 'package:downsta/screens/history.dart';
 import 'package:downsta/services/api.dart';
 import 'package:downsta/services/db.dart';
 import 'package:downsta/services/downloader.dart';
@@ -60,6 +61,7 @@ class MyApp extends StatelessWidget {
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
         PostScreen.routeName: (_) => const PostScreen(),
+        HistoryScreen.routeName: (_) => const HistoryScreen(),
       },
     );
   }

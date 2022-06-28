@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:downsta/services/api.dart';
 import 'package:downsta/widgets/profile_header.dart';
 import 'package:downsta/widgets/posts.dart';
+import 'package:downsta/widgets/download_status_indicator.dart';
 
 class ProfileScreenArguments {
   String username;
@@ -52,6 +53,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     return Scaffold(
       appBar: AppBar(
         title: Text(username),
+        actions: const [DownloadStatusIndicator()],
       ),
       body: Column(children: [
         Container(

@@ -57,6 +57,7 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
     await Directory(downloadDir).create();
 
     running = true;
+    notifyListeners();
 
     List<Future> futures = [];
     while (queue.isNotEmpty) {
@@ -77,6 +78,7 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
     _notify();
 
     running = false;
+    notifyListeners();
   }
 
   Future<void> _download(DownloadItem item) async {

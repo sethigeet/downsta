@@ -1,11 +1,12 @@
 import 'package:flutter/material.dart';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 
-import 'package:downsta/services/downloader.dart';
 import 'package:downsta/services/api.dart';
-import 'package:downsta/utils.dart';
+import 'package:downsta/services/downloader.dart';
+import 'package:downsta/services/db.dart';
+import 'package:downsta/models/history_item.dart';
+import 'package:downsta/widgets/cached_image.dart';
 import 'package:downsta/screens/post.dart';
 
 class Posts extends StatefulWidget {
@@ -54,6 +55,7 @@ class _PostsState extends State<Posts> {
     final theme = Theme.of(context);
 
     final downloader = Provider.of<Downloader>(context, listen: false);
+    final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
     final userInfo = api.userInfo[widget.username];
     if (userInfo == null) {
@@ -131,22 +133,7 @@ class _PostsState extends State<Posts> {
                   child: Stack(
                     fit: StackFit.expand,
                     children: [
-                      CachedNetworkImage(
-                        imageUrl: imageUrl,
-                        cacheKey: getCacheKey(imageUrl),
-                        fit: BoxFit.cover,
-                        progressIndicatorBuilder:
-                            (context, url, downloadProgress) => Container(
-                          color: theme.backgroundColor,
-                          child: Center(
-                              child: CircularProgressIndicator(
-                                  value: downloadProgress.progress)),
-                        ),
-                        errorWidget: (context, url, error) => Container(
-                          color: theme.backgroundColor,
-                          child: const Center(child: Icon(Icons.error)),
-                        ),
-                      ),
+                      CachedImage(imageUrl: imageUrl),
                       Positioned(
                           top: 10,
                           right: 10,
@@ -217,6 +204,7 @@ class _PostsState extends State<Posts> {
                   child: IconButton(
                     onPressed: () {
                       if (selectionStarted) {
+                        List<HistoryItem> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
                           final post = posts[idx]["node"];
@@ -230,7 +218,14 @@ class _PostsState extends State<Posts> {
                           }
 
                           urls.addAll(images);
+                          histItems.add(HistoryItem.create(
+                            postId: post["id"],
+                            coverImgUrl: post["display_url"],
+                            imageUrls: images,
+                            username: widget.username,
+                          ));
                         }
+                        db.saveItemsToHistory(histItems);
                         downloader.download(
                           urls,
                           widget.username,

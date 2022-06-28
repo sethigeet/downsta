@@ -4,9 +4,12 @@ import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:downsta/screens/login.dart';
+import 'package:downsta/screens/history.dart';
 import 'package:downsta/widgets/user_card.dart';
 import 'package:downsta/services/api.dart';
+import 'package:downsta/services/downloader.dart';
 import 'package:downsta/utils.dart';
+import 'package:downsta/widgets/download_status_indicator.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -49,6 +52,7 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final downloader = context.watch<Downloader>();
     final api = context.watch<Api>();
     if (api.following == null) {
       api.getFollowing();
@@ -74,6 +78,7 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Downsta"),
+        actions: const [DownloadStatusIndicator()],
       ),
       drawer: MyDrawer(user: me),
       body: ListView.builder(
@@ -236,6 +241,13 @@ class MyDrawer extends StatelessWidget {
                   );
                 },
               );
+            },
+          ),
+          ListTile(
+            leading: const Icon(Icons.history),
+            title: const Text("Download History"),
+            onTap: () {
+              Navigator.pushNamed(context, HistoryScreen.routeName);
             },
           ),
         ],
