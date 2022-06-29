@@ -46,16 +46,28 @@ class _HomeScreenState extends State<HomeScreen> {
     // if (_scrollController.position.extentAfter <= 100) {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
-      await api.getMoreFollowing(endCursor!);
+
+      await api.get(
+        queryHash: ApiQueryHashes.following,
+        params: {"id": await api.getUserId(api.username), "after": endCursor},
+        resExtractor: (res) => res["user"]["edge_follow"],
+        cacheExtractor: (cache) => cache.following!,
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    final downloader = context.watch<Downloader>();
     final api = context.watch<Api>();
-    if (api.following == null) {
-      api.getFollowing();
+    if (api.cache.following == null) {
+      api.getUserId(api.username).then((userId) => api.get(
+            queryHash: ApiQueryHashes.following,
+            params: {"id": userId},
+            resExtractor: (res) => res["user"]["edge_follow"],
+            cacheExtractor: (cache) => cache.following,
+            initial: true,
+            cacheInitializer: (cache) => cache.following = {"edges": []},
+          ));
 
       return Scaffold(
         appBar: AppBar(
@@ -65,15 +77,15 @@ class _HomeScreenState extends State<HomeScreen> {
       );
     }
 
-    List<dynamic> users = api.following!["edges"] ?? [];
-    var pageInfo = api.following!["page_info"];
+    List<dynamic> users = api.cache.following!["edges"] ?? [];
+    var pageInfo = api.cache.following!["page_info"];
     var hasMorePosts = pageInfo["has_next_page"];
     if (hasMorePosts) {
       endCursor = pageInfo["end_cursor"];
     } else {
       endCursor = null;
     }
-    var me = api.userInfo[api.username];
+    var me = api.cache.userInfo[api.username];
 
     return Scaffold(
       appBar: AppBar(

@@ -1,62 +1,94 @@
 import 'dart:convert';
 import 'dart:io';
 
-import 'package:downsta/services/db.dart';
 import 'package:flutter/foundation.dart';
 
-import 'package:cookie_jar/cookie_jar.dart';
 import 'package:http/http.dart' as http;
 
-import 'package:downsta/utils.dart';
+import 'package:downsta/helpers/cookie_jar.dart';
+import 'package:downsta/services/db.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
-final cookieSplitRegex = RegExp(r',(?=[^ ])');
 
-abstract class URLS {
-  // desktop
+const defaultHeaders = {
+  HttpHeaders.acceptEncodingHeader: "gzip, deflate",
+  HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
+  HttpHeaders.refererHeader: "https://www.instagram.com/",
+};
+
+abstract class ApiUrls {
   static const csrfToken = "/accounts/login";
-  // data={"enc_password": enc_password, "username": USERNAME} desktop
   static const login = "/accounts/login/ajax/";
   static const loginCheck = "/accounts/login/";
-  // data={"user_id": <user-id>} desktop
+  // TODO: data={"user_id": <user-id>} desktop
   static const logout = "/accounts/logout/ajax/";
 
-  // data={"target_user_id": "<userid>"} mobile
-  static const reels = "/api/v1/clips/user/";
-  // params={"username": USERNAME_TO_GET} mobile
   static const userInfo = "/api/v1/users/web_profile_info/";
-
   static const following = "/api/v1/friendships/{USERID}/following/";
-  // mobile
+
+  // TODO: data={"target_user_id": "<userid>"} mobile
+  static const reels = "/api/v1/clips/user/";
+  // TODO: mobile
   static const stories = "/api/v1/feed/user/{USERID}/story/";
 
-  // params={"query": SEARCH_TERM} desktop
+  // TODO: params={"query": SEARCH_TERM} desktop
   static const search = "/web/search/topsearch/";
+}
+
+abstract class ApiUserAgents {
+  static const desktop =
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36";
+  static const mobile =
+      "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)";
+
+  static String getUserAgentByHost(String host) {
+    if (host.contains("www")) {
+      return ApiUserAgents.desktop;
+    }
+
+    return ApiUserAgents.mobile;
+  }
+}
+
+abstract class ApiQueryHashes {
+  static const following = "58712303d941c6855d4e888c5f0cd22f";
+  static const posts = "003056d32c2554def87228bc3fd9668a";
+}
+
+class Cache with DiagnosticableTreeMixin {
+  Map<String, dynamic>? following;
+  Map<String, dynamic> userInfo = {};
+
+  void resetCache() {
+    following = null;
+    userInfo = {};
+  }
+
+  @override
+  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
+    super.debugFillProperties(properties);
+
+    properties.add(StringProperty("userInfo", userInfo.toString()));
+    properties.add(StringProperty("following", following.toString()));
+  }
 }
 
 class Api with ChangeNotifier, DiagnosticableTreeMixin {
   final http.Client client = http.Client();
   final DB db;
-  PersistCookieJar cookieJar;
+  CookieJar cookieJar;
   String _csrfToken;
 
-  Map<String, dynamic>? following;
-  Map<String, dynamic> userInfo = {};
+  final Cache cache = Cache();
   bool? isLoggedIn;
 
   String username;
 
   Api(this.username, this.cookieJar, this.db, this._csrfToken);
 
-  static Future<PersistCookieJar> getCookieJar(String username) async {
-    final dir = await getAppDataStorageDir();
-    return PersistCookieJar(
-        storage: FileStorage("$dir/session-cookies-$username"));
-  }
-
   static Future<Api> create(String username, DB db) async {
-    final cookieJar = await Api.getCookieJar(username);
-    return Api(username, cookieJar, db, "");
+    final cookies = await CookieJar.getNewCookieJar(username);
+    return Api(username, cookies, db, "");
   }
 
   Future<bool> getIsLoggedIn() async {
@@ -67,9 +99,10 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     var uri = Uri(
       scheme: "https",
       host: "www.instagram.com",
-      path: URLS.loginCheck,
+      path: ApiUrls.loginCheck,
     );
-    var cookies = await cookieJar.loadForRequest(uri);
+
+    var cookies = await cookieJar.getCookies(uri);
     if (cookies.isEmpty) {
       isLoggedIn = false;
       return false;
@@ -97,13 +130,10 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     var req = http.Request("GET", uri);
     req.followRedirects = false;
     req.headers.addAll({
-      HttpHeaders.acceptEncodingHeader: "gzip, deflate",
-      HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-      HttpHeaders.refererHeader: "https://www.instagram.com/",
-      HttpHeaders.userAgentHeader:
-          "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+      ...defaultHeaders,
+      HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
       HttpHeaders.cookieHeader:
-          cookies.map((cookie) => cookie.toString()).join("; "),
+          CookieJar.getCookiesStringForHeaderFromCookies(cookies),
       "X-CSRFToken": _csrfToken,
     });
     var res = await client.send(req);
@@ -118,9 +148,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<void> switchUser(String username) async {
     this.username = username;
-    cookieJar = await Api.getCookieJar(username);
-    userInfo = {};
-    following = null;
+    cookieJar = await CookieJar.getNewCookieJar(username);
+    cache.resetCache();
 
     await db.setLastLoggedInUser(username);
 
@@ -131,7 +160,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     isLoggedIn = null;
 
     final csrfRes = await getWindowSharedData(
-      URLS.csrfToken,
+      ApiUrls.csrfToken,
       sendCookies: false,
     );
     _csrfToken = csrfRes["config"]["csrf_token"];
@@ -143,16 +172,13 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     final uri = Uri(
       scheme: "https",
       host: "www.instagram.com",
-      path: URLS.login,
+      path: ApiUrls.login,
     );
     final res = await client.post(
       uri,
       headers: {
-        HttpHeaders.acceptEncodingHeader: "gzip, deflate",
-        HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-        HttpHeaders.refererHeader: "https://www.instagram.com/",
-        HttpHeaders.userAgentHeader:
-            "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36",
+        ...defaultHeaders,
+        HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
         "X-CSRFToken": _csrfToken,
       },
       body: {
@@ -181,7 +207,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
 
     isLoggedIn = true;
-    saveCookies(uri, res.headers["set-cookie"]);
+    cookieJar.saveCookies(uri, res.headers["set-cookie"]);
     await switchUser(username);
 
     return null;
@@ -189,12 +215,13 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<Map<String, dynamic>> getUserInfo(String username,
       {bool? force}) async {
+    var userInfo = cache.userInfo;
     if ((force == null || !force) && userInfo[username] != null) {
       return userInfo[username];
     }
 
     var res = await getMobileJson(
-      URLS.userInfo,
+      ApiUrls.userInfo,
       queryParameters: {"username": username},
     );
     var info = res["data"]["user"];
@@ -209,6 +236,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     String username, {
     bool? force,
   }) async {
+    var userInfo = cache.userInfo;
     if ((force == null || !force) && userInfo[username] != null) {
       return userInfo[username]["id"];
     }
@@ -220,56 +248,49 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return info["id"];
   }
 
-  Future<Map<String, dynamic>> getFollowing({
-    bool? force,
+  Future<Map<String, dynamic>> get({
+    required String queryHash,
+    required Map<String, dynamic> params,
+    required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
+    required Map<String, dynamic>? Function(Cache) cacheExtractor,
+    bool initial = false,
+    void Function(Cache)? cacheInitializer,
+    bool force = false,
   }) async {
-    if ((force == null || !force) && following != null) {
-      return following!;
+    if (initial) {
+      var oldData = cacheExtractor(cache);
+      if (!force && oldData != null) {
+        return oldData;
+      }
+
+      if (cacheInitializer == null) {
+        throw ErrorHint(
+            "cacheInitializer cannot be null if this is the initial request and there is no cached data available!");
+      }
+      return get(
+        queryHash: queryHash,
+        params: params,
+        resExtractor: resExtractor,
+        cacheExtractor: (cache) {
+          cacheInitializer(cache);
+          return cacheExtractor(cache);
+        },
+      );
     }
 
-    var userId = await getUserId(username);
-    var res = await getGQLJson(
-      "58712303d941c6855d4e888c5f0cd22f",
-      {"id": userId, "first": 25},
-    );
-
-    following = res["data"]["user"]["edge_follow"];
-
-    notifyListeners();
-
-    return following!;
-  }
-
-  Future<Map<String, dynamic>> getMoreFollowing(String endCursor) async {
-    final userId = userInfo[username]["id"];
-    var res = await getGQLJson("58712303d941c6855d4e888c5f0cd22f",
-        {"id": userId, "first": 25, "after": endCursor});
-    var following = res["data"]["user"]["edge_follow"];
-
-    this.following!["page_info"] = following["page_info"];
-    this.following!["edges"].addAll(following["edges"]);
+    var res = await getGQLJson(queryHash, {"first": 25, ...params});
+    var newData = resExtractor(res["data"]);
+    var oldData = cacheExtractor(cache);
+    if (oldData == null) {
+      throw ErrorHint(
+          "cached data cannot be null if this is not the initial request");
+    }
+    oldData["page_info"] = newData["page_info"];
+    oldData["edges"].addAll(newData["edges"]);
 
     notifyListeners();
 
-    return this.following!;
-  }
-
-  Future<Map<String, dynamic>> getMorePosts(
-      String username, String endCursor) async {
-    final userId = userInfo[username]["id"];
-    var res = await getGQLJson("003056d32c2554def87228bc3fd9668a",
-        {"id": userId, "first": 25, "after": endCursor});
-    var media = res["data"]["user"]["edge_owner_to_timeline_media"];
-
-    var oldMedia = userInfo[username]["edge_owner_to_timeline_media"];
-    oldMedia["page_info"]["has_next_page"] =
-        media["page_info"]["has_next_page"];
-    oldMedia["page_info"]["end_cursor"] = media["page_info"]["end_cursor"];
-    oldMedia["edges"].addAll(media["edges"]);
-
-    notifyListeners();
-
-    return media;
+    return newData;
   }
 
   Future<dynamic> getJson(String path,
@@ -281,22 +302,15 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         path: path,
         queryParameters: queryParameters);
 
-    var cookies = await cookieJar.loadForRequest(uri);
     var res = await client.get(uri, headers: {
-      HttpHeaders.acceptEncodingHeader: "gzip, deflate",
-      HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-      HttpHeaders.refererHeader: "https://www.instagram.com/",
-      HttpHeaders.userAgentHeader: host.contains("www")
-          ? "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-          :
-          // user agent should be mobile
-          "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)",
-      HttpHeaders.cookieHeader:
-          cookies.map((cookie) => cookie.toString()).join("; "),
+      ...defaultHeaders,
+      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
       "X-CSRFToken": _csrfToken,
     });
 
-    // saveCookies(uri, res.headers["set-cookie"]);
+    // TODO: Figure out whether we need to save the cookies here or not
+    // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
 
     return jsonDecode(res.body);
   }
@@ -317,18 +331,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         path: path,
         queryParameters: queryParameters);
 
-    var cookies = await cookieJar.loadForRequest(uri);
     var res = await client.get(uri, headers: {
-      HttpHeaders.acceptEncodingHeader: "gzip, deflate",
-      HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-      HttpHeaders.refererHeader: "https://www.instagram.com/",
-      HttpHeaders.userAgentHeader: host.contains("www")
-          ? "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-          :
-          // user agent should be mobile
-          "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)",
+      ...defaultHeaders,
+      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
       HttpHeaders.cookieHeader: sendCookies != null && sendCookies
-          ? cookies.map((cookie) => cookie.toString()).join("; ")
+          ? await cookieJar.getCookiesForHeader(uri)
           : "",
       // "X-CSRFToken": _csrfToken,
     });
@@ -355,50 +362,17 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
           "variables": jsonEncode(variables)
         });
 
-    var cookies = await cookieJar.loadForRequest(uri);
     var res = await client.get(uri, headers: {
-      HttpHeaders.acceptEncodingHeader: "gzip, deflate",
-      HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-      HttpHeaders.refererHeader: "https://www.instagram.com/",
+      ...defaultHeaders,
       HttpHeaders.acceptHeader: "*/*",
-      HttpHeaders.userAgentHeader: host.contains("www")
-          ? "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36"
-          :
-          // user agent should be mobile
-          "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)",
-      HttpHeaders.cookieHeader:
-          cookies.map((cookie) => cookie.toString()).join("; "),
+      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
       "X-CSRFToken": _csrfToken,
     });
 
-    // saveCookies(uri, res.headers["set-cookie"]);
+    // TODO: Figure out whether we need to save the cookies here or not
+    // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
 
     return jsonDecode(res.body);
-  }
-
-  void saveCookies(Uri uri, String? cookieHeader) async {
-    if (cookieHeader == null || cookieHeader.isEmpty) {
-      return;
-    }
-
-    final cookies = cookieHeader.split(cookieSplitRegex);
-    if (cookies.isEmpty) {
-      return;
-    }
-
-    final parsedCookies =
-        cookies.map((c) => Cookie.fromSetCookieValue(c)).toList();
-    await cookieJar.saveFromResponse(
-        Uri(scheme: "https", host: "i.instagram.com"), parsedCookies);
-    await cookieJar.saveFromResponse(
-        Uri(scheme: "https", host: "www.instagram.com"), parsedCookies);
-  }
-
-  @override
-  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-    super.debugFillProperties(properties);
-
-    properties.add(StringProperty("userInfo", userInfo.toString()));
-    properties.add(StringProperty("following", following.toString()));
   }
 }

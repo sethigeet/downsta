@@ -38,7 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final username = args.username;
 
     final api = context.watch<Api>();
-    final userInfo = api.userInfo[username];
+    final userInfo = api.cache.userInfo[username];
     if (userInfo == null) {
       api.getUserInfo(username);
 

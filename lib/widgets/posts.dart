@@ -46,7 +46,17 @@ class _PostsState extends State<Posts> {
     // if (_scrollController.position.extentAfter <= 100) {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
-      await api.getMorePosts(widget.username, endCursor!);
+
+      await api.get(
+        queryHash: ApiQueryHashes.posts,
+        params: {
+          "id": await api.getUserId(widget.username),
+          "after": endCursor
+        },
+        resExtractor: (res) => res["user"]["edge_owner_to_timeline_media"],
+        cacheExtractor: (cache) =>
+            cache.userInfo[widget.username]["edge_owner_to_timeline_media"],
+      );
     }
   }
 
@@ -57,7 +67,7 @@ class _PostsState extends State<Posts> {
     final downloader = Provider.of<Downloader>(context, listen: false);
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
-    final userInfo = api.userInfo[widget.username];
+    final userInfo = api.cache.userInfo[widget.username];
     if (userInfo == null) {
       // it is already being requested by the `parent` so no need to request again!
 
