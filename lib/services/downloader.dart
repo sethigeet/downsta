@@ -7,7 +7,7 @@ import 'package:flutter/material.dart';
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
-import 'package:downsta/services/db.dart';
+import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 
 class DownloadItem {

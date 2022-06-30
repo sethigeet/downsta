@@ -6,7 +6,7 @@ import 'package:flutter/foundation.dart';
 import 'package:http/http.dart' as http;
 
 import 'package:downsta/helpers/cookie_jar.dart';
-import 'package:downsta/services/db.dart';
+import 'package:downsta/services/services.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 
@@ -14,6 +14,7 @@ const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
   HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
   HttpHeaders.refererHeader: "https://www.instagram.com/",
+  "X-IG-APP-ID": "936619743392459",
 };
 
 abstract class ApiUrls {
@@ -58,6 +59,7 @@ abstract class ApiQueryHashes {
 class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic>? following;
   Map<String, dynamic> userInfo = {};
+  Map<String, dynamic> reels = {};
 
   void resetCache() {
     following = null;
@@ -248,6 +250,36 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return info["id"];
   }
 
+  Future<Map<String, dynamic>> getReels(String username,
+      {String endCursor = "", bool? force}) async {
+    var reels = cache.reels;
+    if (endCursor == "" &&
+        (force == null || !force) &&
+        reels[username] != null) {
+      return reels[username];
+    }
+
+    var res = await postMobileJson(
+      ApiUrls.reels,
+      body: {
+        "target_user_id": await getUserId(username),
+        "page_size": "12",
+        "max_id": endCursor,
+        "include_feed_video": "false",
+      },
+    );
+    if (reels[username] != null) {
+      reels[username]["items"].addAll(res["items"]);
+      reels[username]["paging_info"] = res["paging_info"];
+    } else {
+      reels[username] = res;
+    }
+
+    notifyListeners();
+
+    return res;
+  }
+
   Future<Map<String, dynamic>> get({
     required String queryHash,
     required Map<String, dynamic> params,
@@ -315,10 +347,39 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return jsonDecode(res.body);
   }
 
+  Future<dynamic> postJson(String path,
+      {String host = "www.instagram.com", Map<String, dynamic>? body}) async {
+    var uri = Uri(
+      scheme: "https",
+      host: host,
+      path: path,
+    );
+
+    var res = await client.post(
+      uri,
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        "X-CSRFToken": _csrfToken,
+      },
+      body: body,
+    );
+
+    // TODO: Figure out whether we need to save the cookies here or not
+    // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
+
+    return jsonDecode(res.body);
+  }
+
   Future<dynamic> getMobileJson(String path,
       {Map<String, dynamic>? queryParameters}) {
     return getJson(path,
         host: "i.instagram.com", queryParameters: queryParameters);
+  }
+
+  Future<dynamic> postMobileJson(String path, {Map<String, dynamic>? body}) {
+    return postJson(path, host: "i.instagram.com", body: body);
   }
 
   Future<dynamic> getWindowSharedData(String path,

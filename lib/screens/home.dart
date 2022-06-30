@@ -3,13 +3,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:downsta/screens/login.dart';
-import 'package:downsta/screens/history.dart';
-import 'package:downsta/widgets/user_card.dart';
-import 'package:downsta/services/api.dart';
-import 'package:downsta/services/downloader.dart';
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
-import 'package:downsta/widgets/download_status_indicator.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);

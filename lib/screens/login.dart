@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:downsta/screens/home.dart';
-import 'package:downsta/services/api.dart';
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/services/services.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key, this.addingUser}) : super(key: key);

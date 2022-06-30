@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:downsta/screens/history.dart';
-import 'package:downsta/services/downloader.dart';
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/services/services.dart';
 
 class DownloadStatusIndicator extends StatelessWidget {
   const DownloadStatusIndicator({Key? key}) : super(key: key);

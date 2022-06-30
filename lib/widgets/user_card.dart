@@ -1,8 +1,8 @@
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
+import 'package:downsta/screens/screens.dart';
 import 'package:downsta/utils.dart';
-import 'package:downsta/screens/profile.dart';
 
 class UserCard extends StatelessWidget {
   const UserCard({

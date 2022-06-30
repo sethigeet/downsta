@@ -2,10 +2,8 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:downsta/services/api.dart';
-import 'package:downsta/widgets/profile_header.dart';
-import 'package:downsta/widgets/posts.dart';
-import 'package:downsta/widgets/download_status_indicator.dart';
+import 'package:downsta/services/services.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class ProfileScreenArguments {
   String username;
@@ -65,24 +63,33 @@ class _ProfileScreenState extends State<ProfileScreen>
             profilePicUrlHd: userInfo["profile_pic_url_hd"],
           ),
         ),
-        TabBar(
-          controller: _tabController,
-          tabs: const [
-            Tab(icon: Icon(Icons.photo), text: "Posts"),
-            Tab(icon: Icon(Icons.timelapse), text: "Stories"),
-            Tab(icon: Icon(Icons.video_collection_rounded), text: "Reels"),
-            Tab(icon: Icon(Icons.tv), text: "IGTV"),
-          ],
-        ),
-        const SizedBox(height: 20),
-        Flexible(
-          child: TabBarView(controller: _tabController, children: [
-            Posts(username: username),
-            const Center(child: Text("Stories :)")),
-            const Center(child: Text("Reels :)")),
-            const Center(child: Text("IGTV :)")),
-          ]),
-        ),
+        if (userInfo["is_private"] == true &&
+            userInfo["followed_by_viewer"] != true) ...const [
+          SizedBox(height: 50),
+          NoContent(
+            message: "This profile is private!",
+            icon: Icons.privacy_tip_outlined,
+          ),
+        ] else ...[
+          TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(icon: Icon(Icons.photo), text: "Posts"),
+              Tab(icon: Icon(Icons.timelapse), text: "Stories"),
+              Tab(icon: Icon(Icons.video_collection_rounded), text: "Reels"),
+              Tab(icon: Icon(Icons.tv), text: "IGTV"),
+            ],
+          ),
+          const SizedBox(height: 20),
+          Flexible(
+            child: TabBarView(controller: _tabController, children: [
+              Posts(username: username),
+              const Center(child: Text("Stories :)")),
+              Reels(username: username),
+              const Center(child: Text("IGTV :)")),
+            ]),
+          )
+        ],
       ]),
     );
   }

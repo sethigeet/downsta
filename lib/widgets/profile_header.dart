@@ -32,7 +32,8 @@ class ProfileHeader extends StatelessWidget {
                 post: {
                   "display_url": profilePicUrlHd,
                   "id":
-                      "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}"
+                      "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
+                  "owner": {"username": username},
                 },
                 username: username,
               )),

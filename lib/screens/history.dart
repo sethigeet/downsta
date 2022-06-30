@@ -2,9 +2,9 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:downsta/services/db.dart';
-import 'package:downsta/models/history_item.dart';
-import 'package:downsta/widgets/history_item_card.dart';
+import 'package:downsta/services/services.dart';
+import 'package:downsta/models/models.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class HistoryScreen extends StatefulWidget {
   const HistoryScreen({Key? key}) : super(key: key);
@@ -16,16 +16,6 @@ class HistoryScreen extends StatefulWidget {
 }
 
 class _HistoryScreenState extends State<HistoryScreen> {
-  @override
-  void initState() {
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     final db = context.watch<DB>();

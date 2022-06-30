@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:hive_flutter/hive_flutter.dart';
 
-import 'package:downsta/models/history_item.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/utils.dart';
 
 class DB with ChangeNotifier, DiagnosticableTreeMixin {

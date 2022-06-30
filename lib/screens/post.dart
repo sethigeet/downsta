@@ -11,8 +11,7 @@ import 'package:photo_view/photo_view_gallery.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:provider/provider.dart';
 
-import 'package:downsta/services/downloader.dart';
-import 'package:downsta/services/db.dart';
+import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 
 class PostsScrollBehavior extends MaterialScrollBehavior {
@@ -69,14 +68,14 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+
     final db = Provider.of<DB>(context, listen: false);
+    final downloader = Provider.of<Downloader>(context, listen: false);
 
     final args =
         ModalRoute.of(context)!.settings.arguments as PostScreenArguments;
-    final theme = Theme.of(context);
     final post = args.post;
-
-    final downloader = context.watch<Downloader>();
 
     List<String> images = [];
     if (post["edge_sidecar_to_children"] != null) {

@@ -7,16 +7,16 @@ import 'package:downsta/models/models.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
 
-class Posts extends StatefulWidget {
-  const Posts({Key? key, required this.username}) : super(key: key);
+class Reels extends StatefulWidget {
+  const Reels({Key? key, required this.username}) : super(key: key);
 
   final String username;
 
   @override
-  State<Posts> createState() => _PostsState();
+  State<Reels> createState() => _ReelsState();
 }
 
-class _PostsState extends State<Posts> {
+class _ReelsState extends State<Reels> {
   final _scrollController = ScrollController();
   String? endCursor;
   bool selectionStarted = false;
@@ -45,15 +45,9 @@ class _PostsState extends State<Posts> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.get(
-        queryHash: ApiQueryHashes.posts,
-        params: {
-          "id": await api.getUserId(widget.username),
-          "after": endCursor
-        },
-        resExtractor: (res) => res["user"]["edge_owner_to_timeline_media"],
-        cacheExtractor: (cache) =>
-            cache.userInfo[widget.username]["edge_owner_to_timeline_media"],
+      await api.getReels(
+        widget.username,
+        endCursor: endCursor!,
       );
     }
   }
@@ -65,26 +59,26 @@ class _PostsState extends State<Posts> {
     final downloader = Provider.of<Downloader>(context, listen: false);
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
-    final userInfo = api.cache.userInfo[widget.username];
-    if (userInfo == null) {
-      // it is already being requested by the `parent` so no need to request again!
-
-      return Container();
+    final reels = api.cache.reels[widget.username];
+    if (reels == null) {
+      api.getReels(widget.username);
+      return const Center(
+        child: CircularProgressIndicator(),
+      );
     }
+    List<dynamic> items = reels["items"];
 
-    var posts = userInfo["edge_owner_to_timeline_media"]["edges"];
-
-    if (posts.isEmpty) {
+    if (items.isEmpty) {
       return const NoContent(
-        message: "This user has no posts!",
+        message: "This user has no reels!",
         icon: Icons.list_rounded,
       );
     }
 
-    var pageInfo = userInfo["edge_owner_to_timeline_media"]["page_info"];
-    var hasMorePosts = pageInfo["has_next_page"];
-    if (hasMorePosts) {
-      endCursor = pageInfo["end_cursor"];
+    var pagingInfo = reels["paging_info"];
+    var moreAvailable = pagingInfo["more_available"];
+    if (moreAvailable) {
+      endCursor = pagingInfo["max_id"];
     } else {
       endCursor = null;
     }
@@ -92,25 +86,26 @@ class _PostsState extends State<Posts> {
     return Stack(
       children: [
         GridView.builder(
-            itemCount: hasMorePosts ? posts.length + 1 : posts.length,
+            itemCount: moreAvailable ? items.length + 1 : items.length,
             controller: _scrollController,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
-              childAspectRatio: 1,
+              childAspectRatio: 9 / 16,
             ),
             itemBuilder: (context, index) {
-              if (hasMorePosts && index == posts.length) {
+              if (moreAvailable && index == items.length) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final post = posts[index]["node"];
-              final imageUrl = post["display_url"];
+              final reel = items[index]["media"];
+              final imageUrl =
+                  reel["image_versions2"]["candidates"].last["url"];
               final toBeDownloaded = toDownload.contains(index);
               return Hero(
-                tag: "post-${post["id"]}",
+                tag: "reel-${reel["id"]}",
                 child: GestureDetector(
                   onTap: () {
                     if (selectionStarted) {
@@ -124,9 +119,9 @@ class _PostsState extends State<Posts> {
                     } else {
                       Navigator.pushNamed(
                         context,
-                        PostScreen.routeName,
-                        arguments: PostScreenArguments(
-                            post: post, username: post["owner"]["username"]),
+                        ReelScreen.routeName,
+                        arguments: ReelScreenArguments(
+                            reel: reel, username: reel["user"]["username"]),
                       );
                     }
                   },
@@ -223,21 +218,14 @@ class _PostsState extends State<Posts> {
                         List<HistoryItem> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
-                          final post = posts[idx]["node"];
-                          List<String> images = [];
-                          if (post["edge_sidecar_to_children"] != null) {
-                            images.addAll(List<String>.from(
-                                post["edge_sidecar_to_children"]["edges"].map(
-                                    (post) => post["node"]["display_url"])));
-                          } else {
-                            images.add(post["display_url"]);
-                          }
-
-                          urls.addAll(images);
+                          final reel = items[idx]["media"];
+                          final videoUrl = reel["video_versions"].first["url"];
+                          urls.add(videoUrl);
                           histItems.add(HistoryItem.create(
-                            postId: post["id"],
-                            coverImgUrl: post["display_url"],
-                            imageUrls: images,
+                            postId: reel["id"],
+                            coverImgUrl: reel["image_versions2"]["candidates"]
+                                .last["url"],
+                            imageUrls: videoUrl,
                             username: widget.username,
                           ));
                         }

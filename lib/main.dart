@@ -1,16 +1,13 @@
-import 'package:downsta/globals.dart';
+import 'dart:io';
+
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 
-import 'package:downsta/screens/login.dart';
-import "package:downsta/screens/home.dart";
-import "package:downsta/screens/profile.dart";
-import 'package:downsta/screens/post.dart';
-import 'package:downsta/screens/history.dart';
-import 'package:downsta/services/api.dart';
-import 'package:downsta/services/db.dart';
-import 'package:downsta/services/downloader.dart';
+import 'package:downsta/globals.dart';
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/services/services.dart';
 
 Future main() async {
   // NOTE: This is required for `path_provider` to work properly!
@@ -29,7 +26,6 @@ Future main() async {
       lastLoggedInUser = loggedInUsers[0];
     }
   }
-
   runApp(
     MultiProvider(
       providers: [
@@ -43,8 +39,50 @@ Future main() async {
   );
 }
 
-class MyApp extends StatelessWidget {
+class MyApp extends StatefulWidget {
   const MyApp({Key? key}) : super(key: key);
+
+  @override
+  State<MyApp> createState() => _MyAppState();
+}
+
+class _MyAppState extends State<MyApp> {
+  @override
+  void initState() {
+    super.initState();
+
+    // ask for permissions
+    if (Platform.isAndroid || Platform.isIOS) {
+      WidgetsBinding.instance.addPostFrameCallback((_) async {
+        if (await Permission.storage.request().isGranted) {
+        } else if (await Permission.speech.isPermanentlyDenied) {
+          showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder: (BuildContext context) {
+              return AlertDialog(
+                title: const Text("Storage Permission"),
+                content: SingleChildScrollView(
+                  child: ListBody(
+                    children: const [
+                      Text(
+                          "Permission for storage access is required for downloading!"),
+                    ],
+                  ),
+                ),
+                actions: <Widget>[
+                  TextButton(
+                    child: const Text("Okay"),
+                    onPressed: () => openAppSettings(),
+                  ),
+                ],
+              );
+            },
+          );
+        }
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -61,6 +99,7 @@ class MyApp extends StatelessWidget {
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
         PostScreen.routeName: (_) => const PostScreen(),
+        ReelScreen.routeName: (_) => const ReelScreen(),
         HistoryScreen.routeName: (_) => const HistoryScreen(),
       },
     );

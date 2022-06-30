@@ -1,7 +1,7 @@
 import 'package:downsta/widgets/cached_image.dart';
 import 'package:flutter/material.dart';
 
-import 'package:downsta/models/history_item.dart';
+import 'package:downsta/models/models.dart';
 
 class HistoryItemCard extends StatelessWidget {
   const HistoryItemCard({
