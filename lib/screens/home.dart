@@ -5,8 +5,9 @@ import 'package:cached_network_image/cached_network_image.dart';
 
 import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
-import 'package:downsta/utils.dart';
 import 'package:downsta/widgets/widgets.dart';
+import 'package:downsta/helpers/helpers.dart';
+import 'package:downsta/utils.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -87,7 +88,18 @@ class _HomeScreenState extends State<HomeScreen> {
     return Scaffold(
       appBar: AppBar(
         title: const Text("Downsta"),
-        actions: const [DownloadStatusIndicator()],
+        actions: [
+          Builder(builder: (context) {
+            return IconButton(
+              onPressed: () => showSearch(
+                context: context,
+                delegate: SearchProfiles(api: api),
+              ),
+              icon: const Icon(Icons.search),
+            );
+          }),
+          const DownloadStatusIndicator()
+        ],
       ),
       drawer: MyDrawer(user: me),
       body: ListView.builder(
@@ -146,77 +158,66 @@ class MyDrawer extends StatelessWidget {
                 FutureBuilder(
                   future: api.db.getLoggedInUsers(),
                   builder: (context, snapshot) {
-                    if (snapshot.connectionState != ConnectionState.done) {
+                    if (snapshot.hasError) {
+                      return ErrorDisplay(message: "${snapshot.error}");
+                    } else if (snapshot.hasData) {
+                      return DropdownButton<String>(
+                        value: user["username"],
+                        iconEnabledColor: theme.colorScheme.onPrimary,
+                        selectedItemBuilder: (context) {
+                          return (snapshot.data as List<String>)
+                              .map((username) => DropdownMenuItem(
+                                    value: username,
+                                    child: Text(
+                                      username,
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: theme.colorScheme.onPrimary,
+                                      ),
+                                    ),
+                                  ))
+                              .toList();
+                        },
+                        // text: theme.colorScheme.onPrimary,
+                        icon: const Icon(Icons.person),
+                        items: [
+                          ...(snapshot.data as List<String>)
+                              .map((username) => DropdownMenuItem(
+                                    value: username,
+                                    child: Text(username),
+                                  ))
+                              .toList(),
+                          DropdownMenuItem(
+                            value: "add-user",
+                            child: Row(children: const [
+                              Icon(Icons.add),
+                              Text("Add User")
+                            ]),
+                          )
+                        ],
+                        onChanged: (newVal) {
+                          if (newVal == null) {
+                            return;
+                          }
+                          if (newVal == "add-user") {
+                            Navigator.pop(context);
+                            Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (_) =>
+                                      const LoginScreen(addingUser: true),
+                                ));
+                            return;
+                          }
+
+                          // Switch the user
+                          Navigator.pop(context);
+                          api.switchUser(newVal);
+                        },
+                      );
+                    } else {
                       return const Center(child: CircularProgressIndicator());
                     }
-
-                    if (snapshot.hasError) {
-                      return Center(
-                          child: Column(children: [
-                        Row(
-                          children: const [
-                            Icon(Icons.error_outline, color: Colors.red),
-                            Text("An error occurred!")
-                          ],
-                        ),
-                        Text("${snapshot.error}")
-                      ]));
-                    }
-
-                    return DropdownButton<String>(
-                      value: user["username"],
-                      iconEnabledColor: theme.colorScheme.onPrimary,
-                      selectedItemBuilder: (context) {
-                        return (snapshot.data as List<String>)
-                            .map((username) => DropdownMenuItem(
-                                  value: username,
-                                  child: Text(
-                                    username,
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                      color: theme.colorScheme.onPrimary,
-                                    ),
-                                  ),
-                                ))
-                            .toList();
-                      },
-                      // text: theme.colorScheme.onPrimary,
-                      icon: const Icon(Icons.person),
-                      items: [
-                        ...(snapshot.data as List<String>)
-                            .map((username) => DropdownMenuItem(
-                                  value: username,
-                                  child: Text(username),
-                                ))
-                            .toList(),
-                        DropdownMenuItem(
-                          value: "add-user",
-                          child: Row(children: const [
-                            Icon(Icons.add),
-                            Text("Add User")
-                          ]),
-                        )
-                      ],
-                      onChanged: (newVal) {
-                        if (newVal == null) {
-                          return;
-                        }
-                        if (newVal == "add-user") {
-                          Navigator.pop(context);
-                          Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) =>
-                                    const LoginScreen(addingUser: true),
-                              ));
-                          return;
-                        }
-
-                        // Switch the user
-                        Navigator.pop(context);
-                        api.switchUser(newVal);
-                      },
-                    );
                   },
                 )
               ],

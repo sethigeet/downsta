@@ -5,7 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
-import 'package:downsta/helpers/cookie_jar.dart';
+import 'package:downsta/helpers/helpers.dart';
 import 'package:downsta/services/services.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
@@ -32,8 +32,9 @@ abstract class ApiUrls {
   // TODO: mobile
   static const stories = "/api/v1/feed/user/{USERID}/story/";
 
-  // TODO: params={"query": SEARCH_TERM} desktop
+  // TODO: params={"query": SEARCH_query} desktop
   static const search = "/web/search/topsearch/";
+  static const recentSearches = "/web/search/recent_searches/";
 }
 
 abstract class ApiUserAgents {
@@ -60,10 +61,13 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic>? following;
   Map<String, dynamic> userInfo = {};
   Map<String, dynamic> reels = {};
+  Map<String, dynamic> search = {};
 
   void resetCache() {
     following = null;
     userInfo = {};
+    reels = {};
+    search = {};
   }
 
   @override
@@ -216,9 +220,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   }
 
   Future<Map<String, dynamic>> getUserInfo(String username,
-      {bool? force}) async {
+      {bool force = false}) async {
     var userInfo = cache.userInfo;
-    if ((force == null || !force) && userInfo[username] != null) {
+    if (!force && userInfo[username] != null) {
       return userInfo[username];
     }
 
@@ -236,10 +240,10 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<String> getUserId(
     String username, {
-    bool? force,
+    bool force = false,
   }) async {
     var userInfo = cache.userInfo;
-    if ((force == null || !force) && userInfo[username] != null) {
+    if (!force && userInfo[username] != null) {
       return userInfo[username]["id"];
     }
 
@@ -251,11 +255,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   }
 
   Future<Map<String, dynamic>> getReels(String username,
-      {String endCursor = "", bool? force}) async {
+      {String endCursor = "", bool force = false}) async {
     var reels = cache.reels;
-    if (endCursor == "" &&
-        (force == null || !force) &&
-        reels[username] != null) {
+    if (endCursor == "" && !force && reels[username] != null) {
       return reels[username];
     }
 
@@ -273,6 +275,31 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       reels[username]["paging_info"] = res["paging_info"];
     } else {
       reels[username] = res;
+    }
+
+    notifyListeners();
+
+    return res;
+  }
+
+  Future<Map<String, dynamic>> getSearchRes(String query,
+      {bool force = false}) async {
+    var search = cache.search;
+    if (!force && search[query] != null) {
+      return search[query];
+    }
+
+    Map<String, dynamic> res;
+    if (query == "--recent-searches--") {
+      res = await getJson(ApiUrls.recentSearches);
+      res = {"users": res["recent"]};
+      search[query] = res;
+    } else {
+      res = await getJson(
+        ApiUrls.search,
+        queryParameters: {"query": query},
+      );
+      search[query] = res;
     }
 
     notifyListeners();

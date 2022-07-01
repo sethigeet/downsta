@@ -27,49 +27,34 @@ class _HistoryScreenState extends State<HistoryScreen> {
       body: FutureBuilder(
         future: db.getHistoryItems(),
         builder: (context, snap) {
-          if (snap.connectionState == ConnectionState.waiting) {
+          if (snap.hasError) {
+            return ErrorDisplay(message: "${snap.error}");
+          } else if (snap.hasData) {
+            final items = snap.data as List<HistoryItem>;
+            if (items.isEmpty) {
+              return Center(
+                child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: const [
+                      Icon(Icons.insert_drive_file_outlined, size: 35),
+                      SizedBox(width: 5),
+                      Text(
+                        "No pictures downloaded yet!",
+                        style: TextStyle(fontSize: 20),
+                      )
+                    ]),
+              );
+            }
+
+            return ListView.builder(
+              itemCount: items.length,
+              itemBuilder: (context, index) {
+                return HistoryItemCard(item: items[index]);
+              },
+            );
+          } else {
             return const Center(child: CircularProgressIndicator());
           }
-
-          if (snap.hasError) {
-            return Center(
-              child: Column(children: [
-                Row(
-                  children: const [
-                    Text("An error occurred!"),
-                    Icon(
-                      Icons.error,
-                      color: Colors.red,
-                    )
-                  ],
-                ),
-                Text(snap.error.toString())
-              ]),
-            );
-          }
-
-          final items = snap.data as List<HistoryItem>;
-          if (items.isEmpty) {
-            return Center(
-              child: Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: const [
-                    Icon(Icons.insert_drive_file_outlined, size: 35),
-                    SizedBox(width: 5),
-                    Text(
-                      "No pictures downloaded yet!",
-                      style: TextStyle(fontSize: 20),
-                    )
-                  ]),
-            );
-          }
-
-          return ListView.builder(
-            itemCount: items.length,
-            itemBuilder: (context, index) {
-              return HistoryItemCard(item: items[index]);
-            },
-          );
         },
       ),
     );
