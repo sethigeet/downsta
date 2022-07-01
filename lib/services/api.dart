@@ -25,6 +25,7 @@ abstract class ApiUrls {
   static const logout = "/accounts/logout/ajax/";
 
   static const userInfo = "/api/v1/users/web_profile_info/";
+  static const userInfo2 = "/api/v1/users/{USERID}/info/";
   static const following = "/api/v1/friendships/{USERID}/following/";
 
   // TODO: data={"target_user_id": "<userid>"} mobile
@@ -236,6 +237,21 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     notifyListeners();
 
     return info;
+  }
+
+  Future<String> getProfilePicUrl(String username, {bool force = false}) async {
+    var userInfo = cache.userInfo;
+    if (!force && userInfo[username]["hd_profile_pic_url_info"] != null) {
+      return userInfo[username]["hd_profile_pic_url_info"]["url"];
+    }
+
+    var res = await getMobileJson(
+      ApiUrls.userInfo2.replaceAll("{USERID}", userInfo[username]["id"]),
+    );
+    var info = res["user"];
+    userInfo[username].addAll(info);
+
+    return info["hd_profile_pic_url_info"]["url"];
   }
 
   Future<String> getUserId(

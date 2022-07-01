@@ -76,6 +76,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
     final args =
         ModalRoute.of(context)!.settings.arguments as PostScreenArguments;
     final post = args.post;
+    final username = args.username;
 
     List<String> images = [];
     if (post["edge_sidecar_to_children"] != null) {
@@ -142,19 +143,19 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                           postId: post["id"],
                           coverImgUrl: post["display_url"],
                           imageUrls: images,
-                          username: post["owner"]["username"],
+                          username: username,
                         ));
                       }
-                      downloader.download(toDownload, args.username);
+                      downloader.download(toDownload, username);
                     }
                   },
                   onTap: () {
-                    downloader.download(images, args.username);
+                    downloader.download(images, username);
                     db.saveItemToHistory(HistoryItem.create(
                       postId: post["id"],
                       coverImgUrl: post["display_url"],
                       imageUrls: images,
-                      username: post["owner"]["username"],
+                      username: username,
                     ));
                   },
                 ),

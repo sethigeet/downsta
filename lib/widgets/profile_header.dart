@@ -1,8 +1,10 @@
-import 'package:downsta/screens/post.dart';
 import 'package:flutter/material.dart';
 
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:provider/provider.dart';
 
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 
 class ProfileHeader extends StatelessWidget {
@@ -17,25 +19,39 @@ class ProfileHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
+    final api = Provider.of<Api>(context, listen: false);
+
     final username = user["username"];
     final fullName = user["full_name"];
     final profilePicUrl = user["profile_pic_url"];
-    final profilePicUrlHd = user["profile_pic_url_hd"];
 
     return Column(children: [
       Hero(
         tag: "profile-picture-$username",
         child: GestureDetector(
-          onTap: () => Navigator.pushNamed(context, PostScreen.routeName,
-              arguments: PostScreenArguments(
-                post: {
-                  "display_url": profilePicUrlHd,
-                  "id":
-                      "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
-                  "owner": {"username": username},
-                },
-                username: username,
-              )),
+          onTap: () async {
+            final snackbarController =
+                ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: const Text("Fetching high quality profile pic..."),
+                backgroundColor: Theme.of(context).colorScheme.primary,
+                duration: const Duration(days: 365),
+              ),
+            );
+            final url = await api.getProfilePicUrl(username);
+            snackbarController.close();
+
+            // ignore: use_build_context_synchronously
+            Navigator.pushNamed(context, PostScreen.routeName,
+                arguments: PostScreenArguments(
+                  post: {
+                    "display_url": url,
+                    "id":
+                        "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
+                  },
+                  username: username,
+                ));
+          },
           child: CircleAvatar(
             backgroundImage: CachedNetworkImageProvider(
               profilePicUrl,

@@ -184,7 +184,7 @@ class _LoginScreenState extends State<LoginScreen> {
             TextButton(
               child: const Text("Okay"),
               onPressed: () {
-                Navigator.of(context).pop();
+                Navigator.pop(context);
               },
             ),
           ],
