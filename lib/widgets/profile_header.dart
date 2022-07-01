@@ -8,20 +8,19 @@ import 'package:downsta/utils.dart';
 class ProfileHeader extends StatelessWidget {
   const ProfileHeader({
     Key? key,
-    required this.fullName,
-    required this.username,
-    required this.profilePicUrl,
-    required this.profilePicUrlHd,
+    required this.user,
   }) : super(key: key);
 
-  final String username;
-  final String fullName;
-  final String profilePicUrl;
-  final String profilePicUrlHd;
+  final Map<String, dynamic> user;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    final username = user["username"];
+    final fullName = user["full_name"];
+    final profilePicUrl = user["profile_pic_url"];
+    final profilePicUrlHd = user["profile_pic_url_hd"];
 
     return Column(children: [
       Hero(
