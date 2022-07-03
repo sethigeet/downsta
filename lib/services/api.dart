@@ -28,12 +28,8 @@ abstract class ApiUrls {
   static const userInfo2 = "/api/v1/users/{USERID}/info/";
   static const following = "/api/v1/friendships/{USERID}/following/";
 
-  // TODO: data={"target_user_id": "<userid>"} mobile
   static const reels = "/api/v1/clips/user/";
-  // TODO: mobile
-  static const stories = "/api/v1/feed/user/{USERID}/story/";
 
-  // TODO: params={"query": SEARCH_query} desktop
   static const search = "/web/search/topsearch/";
   static const recentSearches = "/web/search/recent_searches/";
 }
@@ -56,6 +52,7 @@ abstract class ApiUserAgents {
 abstract class ApiQueryHashes {
   static const following = "58712303d941c6855d4e888c5f0cd22f";
   static const posts = "003056d32c2554def87228bc3fd9668a";
+  static const stories = "303a4ae99711322310f25250d988f3b7";
 }
 
 class Cache with DiagnosticableTreeMixin {
@@ -63,6 +60,7 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic> userInfo = {};
   Map<String, dynamic> reels = {};
   Map<String, dynamic> search = {};
+  Map<String, dynamic> stories = {};
 
   void resetCache() {
     following = null;
@@ -321,6 +319,27 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     notifyListeners();
 
     return res;
+  }
+
+  Future<Map<String, dynamic>> getStories(String username,
+      {bool force = false}) async {
+    var stories = cache.stories;
+    if (!force && stories[username] != null) {
+      return stories[username];
+    }
+
+    final id = await getUserId(username);
+    final res = await getGQLJson(ApiQueryHashes.stories, {
+      "reel_ids": [id],
+      "precomposed_overlay": false,
+    });
+    final reelsMedia = res["data"]["reels_media"];
+    Map<String, dynamic> data = reelsMedia.isEmpty ? {} : reelsMedia[0];
+    stories[username] = data;
+
+    notifyListeners();
+
+    return data;
   }
 
   Future<Map<String, dynamic>> get({

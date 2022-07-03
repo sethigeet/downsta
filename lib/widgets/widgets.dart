@@ -7,4 +7,5 @@ export './no_content.dart';
 export './posts.dart';
 export './profile_header.dart';
 export './reels.dart';
+export './stories.dart';
 export './user_card.dart';

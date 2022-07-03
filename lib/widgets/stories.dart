@@ -6,51 +6,18 @@ import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
 
-class Reels extends StatefulWidget {
-  const Reels({Key? key, required this.username}) : super(key: key);
+class Stories extends StatefulWidget {
+  const Stories({Key? key, required this.username}) : super(key: key);
 
   final String username;
 
   @override
-  State<Reels> createState() => _ReelsState();
+  State<Stories> createState() => _StoriesState();
 }
 
-class _ReelsState extends State<Reels> {
-  final _scrollController = ScrollController();
-  String? endCursor;
+class _StoriesState extends State<Stories> {
   bool selectionStarted = false;
   Set<int> toDownload = {};
-
-  @override
-  void initState() {
-    super.initState();
-
-    _scrollController.addListener(_scrollListener);
-  }
-
-  @override
-  void dispose() {
-    _scrollController.removeListener(_scrollListener);
-    _scrollController.dispose();
-
-    super.dispose();
-  }
-
-  void _scrollListener() async {
-    if (endCursor == null) {
-      return;
-    }
-
-    // if (_scrollController.position.extentAfter <= 100) {
-    if (_scrollController.position.extentAfter == 0) {
-      final api = Provider.of<Api>(context, listen: false);
-
-      await api.getReels(
-        widget.username,
-        endCursor: endCursor!,
-      );
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -59,53 +26,37 @@ class _ReelsState extends State<Reels> {
     final downloader = Provider.of<Downloader>(context, listen: false);
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
-    final reels = api.cache.reels[widget.username];
-    if (reels == null) {
-      api.getReels(widget.username);
+    final stories = api.cache.stories[widget.username];
+    if (stories == null) {
+      api.getStories(widget.username);
       return const Center(
         child: CircularProgressIndicator(),
       );
     }
-    List<dynamic> items = reels["items"];
+
+    List<dynamic> items = stories.isEmpty ? [] : stories["items"];
 
     if (items.isEmpty) {
       return const NoContent(
-        message: "This user has no reels!",
+        message: "This user has no stories!",
         icon: Icons.list_rounded,
       );
-    }
-
-    var pagingInfo = reels["paging_info"];
-    var moreAvailable = pagingInfo["more_available"];
-    if (moreAvailable) {
-      endCursor = pagingInfo["max_id"];
-    } else {
-      endCursor = null;
     }
 
     return Stack(
       children: [
         GridView.builder(
-            itemCount: moreAvailable ? items.length + 1 : items.length,
-            controller: _scrollController,
+            itemCount: items.length,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               childAspectRatio: 9 / 16,
             ),
             itemBuilder: (context, index) {
-              if (moreAvailable && index == items.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
-
-              final reel = items[index]["media"];
-              final imageUrl =
-                  reel["image_versions2"]["candidates"].last["url"];
+              final story = items[index];
+              final imageUrl = story["display_url"];
               final toBeDownloaded = toDownload.contains(index);
               return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(reel["id"]),
+                  future: db.isPostDownloaded(story["id"]),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -113,7 +64,7 @@ class _ReelsState extends State<Reels> {
 
                     final bool alreadyDownloaded = snap.data!;
                     return Hero(
-                      tag: "reel-${reel["id"]}",
+                      tag: "story-${story["id"]}",
                       child: GestureDetector(
                         onTap: () {
                           if (selectionStarted) {
@@ -129,9 +80,9 @@ class _ReelsState extends State<Reels> {
                           } else {
                             Navigator.pushNamed(
                               context,
-                              ReelScreen.routeName,
-                              arguments: ReelScreenArguments(
-                                reel: reel,
+                              StoryScreen.routeName,
+                              arguments: StoryScreenArguments(
+                                story: story,
                                 username: widget.username,
                               ),
                             );
@@ -216,14 +167,16 @@ class _ReelsState extends State<Reels> {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
-                          final reel = items[idx]["media"];
-                          final videoUrl = reel["video_versions"].first["url"];
-                          urls.add(videoUrl);
+                          final story = items[idx];
+                          final isVideo = story["is_video"];
+                          String storyUrl = isVideo
+                              ? story["video_resources"].first["src"]
+                              : story["display_resources"].last["src"];
+                          urls.add(storyUrl);
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: reel["id"],
-                            coverImgUrl: reel["image_versions2"]["candidates"]
-                                .last["url"],
-                            imgUrls: videoUrl,
+                            postId: story["id"],
+                            coverImgUrl: story["display_url"],
+                            imgUrls: storyUrl,
                             username: widget.username,
                           ));
                         }

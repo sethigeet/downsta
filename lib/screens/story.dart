@@ -6,26 +6,28 @@ import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
 import 'package:downsta/services/services.dart';
+import 'package:downsta/widgets/widgets.dart';
 
-class ReelScreenArguments {
-  dynamic reel;
+class StoryScreenArguments {
+  dynamic story;
   String username;
 
-  ReelScreenArguments({
-    required this.reel,
+  StoryScreenArguments({
+    required this.story,
     required this.username,
   });
 }
 
-class ReelScreen extends StatefulWidget {
-  const ReelScreen({Key? key}) : super(key: key);
-  static const routeName = "/reel";
+class StoryScreen extends StatefulWidget {
+  const StoryScreen({Key? key}) : super(key: key);
+  static const routeName = "/story";
 
   @override
-  State<ReelScreen> createState() => _ReelScreenState();
+  State<StoryScreen> createState() => _StoryScreenState();
 }
 
-class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
+class _StoryScreenState extends State<StoryScreen>
+    with TickerProviderStateMixin {
   final _animationDuration = const Duration(milliseconds: 300);
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
@@ -65,12 +67,19 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
     final downloader = Provider.of<Downloader>(context, listen: false);
 
     final args =
-        ModalRoute.of(context)!.settings.arguments as ReelScreenArguments;
-    final reel = args.reel;
-    String imageUrl = reel["image_versions2"]["candidates"].first["url"];
-    String videoUrl = reel["video_versions"].first["url"];
+        ModalRoute.of(context)!.settings.arguments as StoryScreenArguments;
+    final story = args.story;
+    final isVideo = story["is_video"];
 
-    initializePlayer(videoUrl);
+    String coverImgUrl = story["display_url"];
+
+    String storyUrl = isVideo
+        ? story["video_resources"].first["src"]
+        : story["display_resources"].last["src"];
+
+    if (isVideo) {
+      initializePlayer(storyUrl);
+    }
 
     return Scaffold(
       appBar: PreferredSize(
@@ -109,30 +118,32 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                             height: 100,
                             child: Column(children: [
                               ListTile(
-                                onTap: () => Navigator.pop(context, [videoUrl]),
-                                title: const Text("Download video"),
+                                onTap: () => Navigator.pop(context, [storyUrl]),
+                                title: const Text("Download story"),
                                 leading: const Icon(Icons.image),
                               ),
-                              ListTile(
-                                  onTap: () =>
-                                      Navigator.pop(context, [imageUrl]),
-                                  title: const Text("Download cover image"),
-                                  leading: const Icon(Icons.collections)),
-                              ListTile(
-                                  onTap: () => Navigator.pop(
-                                      context, [imageUrl, videoUrl]),
-                                  title: const Text("Download both"),
-                                  leading: const Icon(Icons.collections)),
+                              if (isVideo)
+                                ListTile(
+                                    onTap: () =>
+                                        Navigator.pop(context, [coverImgUrl]),
+                                    title: const Text("Download cover image"),
+                                    leading: const Icon(Icons.collections)),
+                              if (isVideo)
+                                ListTile(
+                                    onTap: () => Navigator.pop(
+                                        context, [coverImgUrl, storyUrl]),
+                                    title: const Text("Download both"),
+                                    leading: const Icon(Icons.collections)),
                             ]),
                           );
                         });
 
                     if (toDownload != null) {
-                      if (toDownload.contains(videoUrl)) {
+                      if (toDownload.contains(storyUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: reel["id"],
-                          coverImgUrl: imageUrl,
-                          imgUrls: videoUrl,
+                          postId: story["id"],
+                          coverImgUrl: coverImgUrl,
+                          imgUrls: storyUrl,
                           username: args.username,
                         ));
                       }
@@ -140,11 +151,11 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                     }
                   },
                   onTap: () {
-                    downloader.download([videoUrl], args.username);
+                    downloader.download([storyUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: reel["id"],
-                      coverImgUrl: imageUrl,
-                      imgUrls: videoUrl,
+                      postId: story["id"],
+                      coverImgUrl: coverImgUrl,
+                      imgUrls: storyUrl,
                       username: args.username,
                     ));
                   },
@@ -167,14 +178,16 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
           children: [
             Expanded(
               child: Hero(
-                tag: "reel-${reel["id"]}",
+                tag: "story-${story["id"]}",
                 child: Center(
-                  child: _chewieController == null
-                      ? buildLoadingWidget()
-                      : !_chewieController!
-                              .videoPlayerController.value.isInitialized
+                  child: isVideo
+                      ? _chewieController == null
                           ? buildLoadingWidget()
-                          : Chewie(controller: _chewieController!),
+                          : !_chewieController!
+                                  .videoPlayerController.value.isInitialized
+                              ? buildLoadingWidget()
+                              : Chewie(controller: _chewieController!)
+                      : CachedImage(imageUrl: storyUrl),
                 ),
               ),
             ),

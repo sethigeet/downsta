@@ -91,7 +91,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                     controller: _tabController,
                     children: [
                       Posts(username: username),
-                      const Center(child: Text("Stories :)")),
+                      Stories(username: username),
                       Reels(username: username),
                       const Center(child: Text("IGTV :)")),
                     ],
