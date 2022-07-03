@@ -5,7 +5,6 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
-import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 
 class ReelScreenArguments {
@@ -130,10 +129,10 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
 
                     if (toDownload != null) {
                       if (toDownload.contains(videoUrl)) {
-                        db.saveItemToHistory(HistoryItem.create(
+                        db.saveItemToHistory(HistoryItemsCompanion.insert(
                           postId: reel["id"],
                           coverImgUrl: imageUrl,
-                          imageUrls: [videoUrl],
+                          imgUrls: videoUrl,
                           username: reel["user"]["username"],
                         ));
                       }
@@ -142,10 +141,10 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                   },
                   onTap: () {
                     downloader.download([videoUrl], args.username);
-                    db.saveItemToHistory(HistoryItem.create(
+                    db.saveItemToHistory(HistoryItemsCompanion.insert(
                       postId: reel["id"],
                       coverImgUrl: imageUrl,
-                      imageUrls: [videoUrl],
+                      imgUrls: videoUrl,
                       username: reel["user"]["username"],
                     ));
                   },

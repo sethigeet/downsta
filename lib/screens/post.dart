@@ -1,6 +1,5 @@
 import 'dart:math';
 
-import 'package:downsta/models/history_item.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
@@ -139,10 +138,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
                     if (toDownload != null) {
                       if (toDownload.length > 1) {
-                        db.saveItemToHistory(HistoryItem.create(
+                        db.saveItemToHistory(HistoryItemsCompanion.insert(
                           postId: post["id"],
                           coverImgUrl: post["display_url"],
-                          imageUrls: images,
+                          imgUrls: images.join(","),
                           username: username,
                         ));
                       }
@@ -151,10 +150,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                   },
                   onTap: () {
                     downloader.download(images, username);
-                    db.saveItemToHistory(HistoryItem.create(
+                    db.saveItemToHistory(HistoryItemsCompanion.insert(
                       postId: post["id"],
                       coverImgUrl: post["display_url"],
-                      imageUrls: images,
+                      imgUrls: images.join(","),
                       username: username,
                     ));
                   },

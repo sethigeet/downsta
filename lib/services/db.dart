@@ -1,112 +1,124 @@
-import 'package:flutter/foundation.dart';
+import 'dart:io';
 
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:drift/drift.dart';
+import 'package:drift/native.dart';
+import 'package:path/path.dart' as p;
 
 import 'package:downsta/models/models.dart';
 import 'package:downsta/utils.dart';
 
-class DB with ChangeNotifier, DiagnosticableTreeMixin {
-  BoxCollection collection;
+part 'db.g.dart';
 
-  DB(this.collection);
+@DriftDatabase(tables: [
+  HistoryItems,
+  Preferences,
+], queries: {
+  "countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items',
+})
+class DB extends _$DB {
+  DB() : super(DB._openConnection());
 
-  static Future<DB> create() async {
-    final dir = await getAppDataStorageDir();
-    final collection = await BoxCollection.open(
-      "db",
-      {"users", "history"},
-      path: dir,
-    );
+  final Map<String, bool> _isDownloadedCache = {};
 
-    return DB(collection);
-  }
+  @override
+  int get schemaVersion => 2;
 
-  static Future<void> initDB() async {
-    final dir = await getAppDataStorageDir();
-    await Hive.initFlutter(dir);
-    Hive.registerAdapter(HistoryItemAdapter());
+  @override
+  MigrationStrategy get migration =>
+      MigrationStrategy(onCreate: (Migrator m) async {
+        await m.createAll();
+      }, onUpgrade: (Migrator m, int from, int to) async {
+        // added the preferences table
+        if (from < 2) {
+          m.createTable(preferences);
+        }
+      });
+
+  static LazyDatabase _openConnection() {
+    return LazyDatabase(() async {
+      final dir = await getAppDataStorageDir();
+      final file = File(p.join(dir, 'db.sqlite'));
+      return NativeDatabase(file);
+    });
   }
 
   Future<String?> getLastLoggedInUser() async {
-    final usersBox = await collection.openBox("users");
-    return await usersBox.get("lastLoggedInUser");
+    var query = select(preferences);
+    var res = await query.getSingleOrNull();
+    if (res == null) {
+      return null;
+    }
+
+    return res.lastLoggedInUser;
   }
 
-  Future<List<String>> getLoggedInUsers() async {
-    final usersBox = await collection.openBox("users");
-    List<dynamic>? loggedInUsers = await usersBox.get("loggedInUsers");
-    if (loggedInUsers == null) {
-      await usersBox.put("loggedInUsers", []);
-      loggedInUsers = [];
+  Future<List<String>?> getLoggedInUsers() async {
+    var query = select(preferences);
+    var res = await query.getSingleOrNull();
+    if (res == null) {
+      return null;
     }
-    return loggedInUsers.cast<String>();
+
+    return res.loggedInUsers?.split(",") ?? [];
   }
 
   Future<void> setLastLoggedInUser(String username) async {
-    final usersBox = await collection.openBox("users");
-    await collection.transaction(
-      () async {
-        await usersBox.put("lastLoggedInUser", username);
-        final List<dynamic> loggedInUsersList =
-            await usersBox.get("loggedInUsers");
-        final loggedInUsers = Set.from(loggedInUsersList);
-        loggedInUsers.add(username);
-        await usersBox.put("loggedInUsers", List.from(loggedInUsers));
-      },
-      boxNames: ["users"],
-      readOnly: false,
-    );
-
-    notifyListeners();
+    var loggedInUsers = await getLoggedInUsers();
+    if (loggedInUsers == null) {
+      var query = into(preferences);
+      await query.insert(PreferencesCompanion.insert(
+        lastLoggedInUser: Value(username),
+        loggedInUsers: Value(username),
+      ));
+    } else {
+      var query = update(preferences);
+      await query.write(PreferencesCompanion(
+        lastLoggedInUser: Value(username),
+        loggedInUsers: Value(
+          List.from(
+            Set.from(loggedInUsers)..add(username),
+          ).join(","),
+        ),
+      ));
+    }
   }
 
-  Future<List<HistoryItem>> getHistoryItems() async {
-    final historyBox = await collection.openBox<HistoryItem>("history");
-    var items = await historyBox.getAllValues();
-    var vals = items.values.toList()
-      // Sort the vals so that the newest download is at the top!
-      ..sort((a, b) => a.timeDownloaded.compareTo(b.timeDownloaded) * -1);
-    return vals;
+  Future<List<HistoryItem>> getHistoryItems({int? offset}) async {
+    var query = select(historyItems)
+      ..orderBy([
+        (item) =>
+            OrderingTerm(expression: item.downloadTime, mode: OrderingMode.desc)
+      ])
+      ..limit(10, offset: offset);
+
+    return query.get();
   }
 
-  Future<bool> isPostDownloaded(String id) async {
-    final historyBox = await collection.openBox<HistoryItem>("history");
-    final item = await historyBox.get(id);
-    return item != null;
+  Future<int> getTotalHistoryItems() async {
+    return countHistoryItems().getSingle();
   }
 
-  Future<void> saveItemsToHistory(List<HistoryItem> items) async {
-    final historyBox = await collection.openBox<HistoryItem>("history");
-    await collection.transaction(
-      () async {
-        for (var item in items) {
-          await historyBox.put(item.postId, item);
-        }
-      },
-      boxNames: ["history"],
-      readOnly: false,
-    );
+  Future<bool> isPostDownloaded(String postId) async {
+    var cached = _isDownloadedCache[postId];
+    if (cached != null) {
+      return cached;
+    }
 
-    notifyListeners();
+    var query = select(historyItems)
+      ..where((item) => item.postId.equals(postId));
+    var res = await query.getSingleOrNull();
+    var isDownloaded = res != null;
+    _isDownloadedCache[postId] = isDownloaded;
+    return isDownloaded;
   }
 
-  Future<void> saveItemToHistory(HistoryItem item) async {
-    final historyBox = await collection.openBox<HistoryItem>("history");
-    await collection.transaction(
-      () async {
-        await historyBox.put(item.postId, item);
-      },
-      boxNames: ["history"],
-      readOnly: false,
-    );
-
-    notifyListeners();
+  Future<void> saveItemsToHistory(List<HistoryItemsCompanion> items) async {
+    await batch((batch) {
+      batch.insertAll<HistoryItems, HistoryItem>(historyItems, items);
+    });
   }
 
-  @override
-  void debugFillProperties(DiagnosticPropertiesBuilder properties) {
-    super.debugFillProperties(properties);
-
-    properties.add(StringProperty("boxes", collection.boxNames.toString()));
+  Future<void> saveItemToHistory(HistoryItemsCompanion item) async {
+    await into(historyItems).insert(item);
   }
 }

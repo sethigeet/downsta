@@ -1,5 +1,6 @@
 export './cached_image.dart';
 export './download_status_indicator.dart';
+export './downloaded_status.dart';
 export './error_display.dart';
 export './history_item_card.dart';
 export './no_content.dart';

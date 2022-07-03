@@ -66,8 +66,7 @@ class _ProfileScreenState extends State<ProfileScreen>
           ),
           if (!isPrivate)
             SliverPersistentHeader(
-              pinned: false,
-              floating: true,
+              pinned: true,
               delegate: _SliverAppBarDelegate(
                 TabBar(
                   controller: _tabController,

@@ -13,26 +13,27 @@ Future main() async {
   // NOTE: This is required for `path_provider` to work properly!
   WidgetsFlutterBinding.ensureInitialized();
 
-  // Initialize the db
-  await DB.initDB();
-
-  final db = await DB.create();
+  final db = DB();
   var lastLoggedInUser = await db.getLastLoggedInUser();
   if (lastLoggedInUser == null) {
-    final loggedInUsers = await db.getLoggedInUsers();
+    final loggedInUsers = await db.getLoggedInUsers() ?? [];
     if (loggedInUsers.isEmpty) {
       lastLoggedInUser = "";
     } else {
       lastLoggedInUser = loggedInUsers[0];
     }
   }
+  print(lastLoggedInUser);
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(
             value: await Api.create(lastLoggedInUser, db)),
-        ChangeNotifierProvider.value(value: db),
-        ChangeNotifierProvider.value(value: await Downloader.create(db))
+        Provider<DB>(
+          create: (context) => db,
+          dispose: (context, db) => db.close(),
+        ),
+        ChangeNotifierProvider.value(value: await Downloader.create(db)),
       ],
       child: const MyApp(),
     ),

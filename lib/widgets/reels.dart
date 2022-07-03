@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:downsta/services/services.dart';
-import 'package:downsta/models/models.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
 
@@ -32,6 +31,7 @@ class _ReelsState extends State<Reels> {
   @override
   void dispose() {
     _scrollController.removeListener(_scrollListener);
+    _scrollController.dispose();
 
     super.dispose();
   }
@@ -104,80 +104,77 @@ class _ReelsState extends State<Reels> {
               final imageUrl =
                   reel["image_versions2"]["candidates"].last["url"];
               final toBeDownloaded = toDownload.contains(index);
-              return Hero(
-                tag: "reel-${reel["id"]}",
-                child: GestureDetector(
-                  onTap: () {
-                    if (selectionStarted) {
-                      setState(() {
-                        if (toBeDownloaded) {
-                          toDownload.remove(index);
-                        } else {
-                          toDownload.add(index);
-                        }
-                      });
-                    } else {
-                      Navigator.pushNamed(
-                        context,
-                        ReelScreen.routeName,
-                        arguments: ReelScreenArguments(
-                            reel: reel, username: reel["user"]["username"]),
-                      );
+              return FutureBuilder<bool>(
+                  future: db.isPostDownloaded(reel["id"]),
+                  builder: (context, snap) {
+                    if (!snap.hasData) {
+                      return const Center(child: CircularProgressIndicator());
                     }
-                  },
-                  onLongPress: () {
-                    if (selectionStarted) {
-                      setState(() {
-                        if (toBeDownloaded) {
-                          toDownload.remove(index);
-                        } else {
-                          toDownload.add(index);
-                        }
-                      });
-                    } else {
-                      setState(() {
-                        selectionStarted = true;
-                        toDownload.add(index);
-                      });
-                    }
-                  },
-                  child: Stack(
-                    fit: StackFit.expand,
-                    children: [
-                      CachedImage(imageUrl: imageUrl),
-                      Positioned(
-                          top: 10,
-                          right: 10,
-                          child: selectionStarted
-                              ? (toBeDownloaded
-                                  ? Container(
-                                      decoration: BoxDecoration(
-                                        borderRadius: BorderRadius.circular(25),
-                                        color: theme.colorScheme.primary,
-                                      ),
-                                      height: 25,
-                                      width: 25,
-                                      child: Icon(
-                                        Icons.check,
-                                        color: theme.colorScheme.onPrimary,
-                                      ),
-                                    )
-                                  : Container(
-                                      decoration: BoxDecoration(
-                                          borderRadius:
-                                              BorderRadius.circular(25),
-                                          border: Border.all(
-                                            color: theme.colorScheme.primary,
-                                            width: 2,
-                                          )),
-                                      height: 25,
-                                      width: 25,
-                                    ))
-                              : Container())
-                    ],
-                  ),
-                ),
-              );
+
+                    final bool alreadyDownloaded = snap.data!;
+                    return Hero(
+                      tag: "reel-${reel["id"]}",
+                      child: GestureDetector(
+                        onTap: () {
+                          if (selectionStarted) {
+                            if (!alreadyDownloaded) {
+                              setState(() {
+                                if (toBeDownloaded) {
+                                  toDownload.remove(index);
+                                } else {
+                                  toDownload.add(index);
+                                }
+                              });
+                            }
+                          } else {
+                            Navigator.pushNamed(
+                              context,
+                              ReelScreen.routeName,
+                              arguments: ReelScreenArguments(
+                                  reel: reel,
+                                  username: reel["user"]["username"]),
+                            );
+                          }
+                        },
+                        onLongPress: () {
+                          if (selectionStarted) {
+                            if (!alreadyDownloaded) {
+                              setState(() {
+                                if (toBeDownloaded) {
+                                  toDownload.remove(index);
+                                } else {
+                                  toDownload.add(index);
+                                }
+                              });
+                            }
+                          } else {
+                            setState(() {
+                              selectionStarted = true;
+                              if (!alreadyDownloaded) {
+                                toDownload.add(index);
+                              }
+                            });
+                          }
+                        },
+                        child: Stack(
+                          fit: StackFit.expand,
+                          children: [
+                            CachedImage(imageUrl: imageUrl),
+                            Positioned(
+                                top: 10,
+                                right: 10,
+                                child: selectionStarted
+                                    ? DownloadedStatus(
+                                        show: selectionStarted,
+                                        toBeDownloaded: toBeDownloaded,
+                                        alreadyDownloaded: alreadyDownloaded,
+                                      )
+                                    : Container())
+                          ],
+                        ),
+                      ),
+                    );
+                  });
             }),
         Positioned(
           right: 15,
@@ -215,17 +212,17 @@ class _ReelsState extends State<Reels> {
                   child: IconButton(
                     onPressed: () {
                       if (selectionStarted) {
-                        List<HistoryItem> histItems = [];
+                        List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
                           final reel = items[idx]["media"];
                           final videoUrl = reel["video_versions"].first["url"];
                           urls.add(videoUrl);
-                          histItems.add(HistoryItem.create(
+                          histItems.add(HistoryItemsCompanion.insert(
                             postId: reel["id"],
                             coverImgUrl: reel["image_versions2"]["candidates"]
                                 .last["url"],
-                            imageUrls: videoUrl,
+                            imgUrls: videoUrl,
                             username: widget.username,
                           ));
                         }
