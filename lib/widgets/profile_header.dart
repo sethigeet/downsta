@@ -7,7 +7,7 @@ import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 
-class ProfileHeader extends StatelessWidget {
+class ProfileHeader extends StatefulWidget {
   const ProfileHeader({
     Key? key,
     required this.user,
@@ -16,14 +16,19 @@ class ProfileHeader extends StatelessWidget {
   final Map<String, dynamic> user;
 
   @override
+  State<ProfileHeader> createState() => _ProfileHeaderState();
+}
+
+class _ProfileHeaderState extends State<ProfileHeader> {
+  @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
 
     final api = Provider.of<Api>(context, listen: false);
 
-    final username = user["username"];
-    final fullName = user["full_name"];
-    final profilePicUrl = user["profile_pic_url"];
+    final username = widget.user["username"];
+    final fullName = widget.user["full_name"];
+    final profilePicUrl = widget.user["profile_pic_url"];
 
     return Column(children: [
       Hero(
@@ -40,17 +45,7 @@ class ProfileHeader extends StatelessWidget {
             );
             final url = await api.getProfilePicUrl(username);
             snackbarController.close();
-
-            // ignore: use_build_context_synchronously
-            Navigator.pushNamed(context, PostScreen.routeName,
-                arguments: PostScreenArguments(
-                  post: {
-                    "display_url": url,
-                    "id":
-                        "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
-                  },
-                  username: username,
-                ));
+            _gotoPostScreen(url);
           },
           child: CircleAvatar(
             backgroundImage: CachedNetworkImageProvider(
@@ -68,5 +63,18 @@ class ProfileHeader extends StatelessWidget {
       Text("@$username",
           style: const TextStyle(fontSize: 14, color: Colors.white70)),
     ]);
+  }
+
+  void _gotoPostScreen(String url) {
+    final username = widget.user["username"];
+    Navigator.pushNamed(context, PostScreen.routeName,
+        arguments: PostScreenArguments(
+          post: {
+            "display_url": url,
+            "id":
+                "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
+          },
+          username: username,
+        ));
   }
 }

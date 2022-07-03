@@ -23,7 +23,7 @@ Future main() async {
       lastLoggedInUser = loggedInUsers[0];
     }
   }
-  print(lastLoggedInUser);
+
   runApp(
     MultiProvider(
       providers: [
