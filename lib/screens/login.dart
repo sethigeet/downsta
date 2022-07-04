@@ -33,11 +33,22 @@ class _LoginScreenState extends State<LoginScreen> {
     }
 
     final api = Provider.of<Api>(context, listen: false);
-    api.getIsLoggedIn().then((res) {
+    final db = Provider.of<DB>(context, listen: false);
+    api.getIsLoggedIn().then((res) async {
       if (res) {
         gotoHomeScreen();
         return;
       }
+      if (api.username != "") {
+        await api.logout(api.username, makeRequest: false);
+        var loggedInUsers = await db.removeLoggedInUser(api.username);
+        if (loggedInUsers.isNotEmpty) {
+          await api.switchUser(loggedInUsers.first);
+          gotoHomeScreen();
+          return;
+        }
+      }
+
       setState(() => loading = false);
     });
   }

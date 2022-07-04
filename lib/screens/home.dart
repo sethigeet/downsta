@@ -260,6 +260,26 @@ class MyDrawer extends StatelessWidget {
               Navigator.pushNamed(context, HistoryScreen.routeName);
             },
           ),
+          ListTile(
+            leading: const Icon(Icons.logout),
+            title: const Text("Logout"),
+            onTap: () async {
+              final snackbarController =
+                  ScaffoldMessenger.of(context).showSnackBar(
+                SnackBar(
+                  content: const Text("Logging out..."),
+                  backgroundColor: Theme.of(context).colorScheme.primary,
+                  duration: const Duration(days: 365),
+                ),
+              );
+              await api.logout(user["username"]);
+              snackbarController.close();
+              // ignore: use_build_context_synchronously
+              Navigator.pop(context);
+              // ignore: use_build_context_synchronously
+              Navigator.pushReplacementNamed(context, LoginScreen.routeName);
+            },
+          ),
         ],
       ),
     );

@@ -13,9 +13,13 @@ class CookieJar {
     _jar = PersistCookieJar(storage: FileStorage(filename));
   }
 
-  static Future<CookieJar> getNewCookieJar(String username) async {
+  static Future<String> _getDirPath(String username) async {
     final dir = await getAppDataStorageDir();
-    return CookieJar("$dir/session-cookies-$username");
+    return "$dir/session-cookies-$username";
+  }
+
+  static Future<CookieJar> getNewCookieJar(String username) async {
+    return CookieJar(await CookieJar._getDirPath(username));
   }
 
   Future<List<Cookie>> getCookies(Uri uri) => _jar.loadForRequest(uri);
@@ -28,7 +32,7 @@ class CookieJar {
     return cookies.map((cookie) => cookie.toString()).join("; ");
   }
 
-  void saveCookies(Uri uri, String? cookieHeader) async {
+  Future<void> saveCookies(Uri uri, String? cookieHeader) async {
     if (cookieHeader == null || cookieHeader.isEmpty) {
       return;
     }
@@ -44,5 +48,11 @@ class CookieJar {
         Uri(scheme: "https", host: "i.instagram.com"), parsedCookies);
     await _jar.saveFromResponse(
         Uri(scheme: "https", host: "www.instagram.com"), parsedCookies);
+  }
+
+  Future<void> deleteCookies(String username) async {
+    print("deleting cookies...");
+    // final path = await CookieJar._getDirPath(username);
+    // await Directory(path).delete(recursive: true);
   }
 }

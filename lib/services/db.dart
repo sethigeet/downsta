@@ -83,6 +83,24 @@ class DB extends _$DB {
     }
   }
 
+  Future<List<String>> removeLoggedInUser(String username) async {
+    var loggedInUsers = await getLoggedInUsers();
+    if (loggedInUsers == null) {
+      return [];
+    }
+
+    loggedInUsers = List.from(Set.from(loggedInUsers)..remove(username));
+
+    var query = update(preferences);
+    await query.write(PreferencesCompanion(
+      lastLoggedInUser:
+          Value(loggedInUsers.isEmpty ? null : loggedInUsers.first),
+      loggedInUsers: Value(loggedInUsers.join(",")),
+    ));
+
+    return loggedInUsers;
+  }
+
   Future<List<HistoryItem>> getHistoryItems({int? offset}) async {
     var query = select(historyItems)
       ..orderBy([

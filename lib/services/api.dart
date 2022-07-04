@@ -212,10 +212,37 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
 
     isLoggedIn = true;
-    cookieJar.saveCookies(uri, res.headers["set-cookie"]);
     await switchUser(username);
+    await cookieJar.saveCookies(uri, res.headers["set-cookie"]);
 
     return null;
+  }
+
+  Future<void> logout(String username, {bool makeRequest = true}) async {
+    if (makeRequest) {
+      var uri = Uri(
+        scheme: "https",
+        host: "www.instagram.com",
+        path: ApiUrls.logout,
+      );
+
+      await client.post(
+        uri,
+        body: {"user_id": await getUserId(username)},
+        headers: {
+          ...defaultHeaders,
+          HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+          HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+          "X-CSRFToken": _csrfToken,
+        },
+      );
+    }
+
+    await cookieJar.deleteCookies(username);
+    var loggedInUsers = await db.removeLoggedInUser(username);
+    if (loggedInUsers.isNotEmpty) {
+      await switchUser(loggedInUsers.first);
+    }
   }
 
   Future<Map<String, dynamic>> getUserInfo(String username,
