@@ -52,7 +52,9 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
       autoPlay: true,
-      looping: true,
+      looping: false,
+      allowMuting: true,
+      zoomAndPan: true,
     );
     setState(() {});
   }

@@ -48,13 +48,17 @@ class _StoryScreenState extends State<StoryScreen>
     super.dispose();
   }
 
-  void initializePlayer(String url) async {
+  void initializePlayer(String url, String coverImgUrl) async {
     _videoController = VideoPlayerController.network(url);
     await _videoController!.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
+      errorBuilder: (context, msg) => ErrorDisplay(message: msg),
+      placeholder: CachedImage(imageUrl: coverImgUrl),
       autoPlay: true,
-      looping: true,
+      looping: false,
+      allowMuting: true,
+      zoomAndPan: true,
     );
     setState(() {});
   }
@@ -78,7 +82,7 @@ class _StoryScreenState extends State<StoryScreen>
         : story["display_resources"].last["src"];
 
     if (isVideo) {
-      initializePlayer(storyUrl);
+      initializePlayer(storyUrl, coverImgUrl);
     }
 
     return Scaffold(
@@ -182,10 +186,10 @@ class _StoryScreenState extends State<StoryScreen>
                 child: Center(
                   child: isVideo
                       ? _chewieController == null
-                          ? buildLoadingWidget()
+                          ? buildLoadingWidget(coverImgUrl)
                           : !_chewieController!
                                   .videoPlayerController.value.isInitialized
-                              ? buildLoadingWidget()
+                              ? buildLoadingWidget(coverImgUrl)
                               : Chewie(controller: _chewieController!)
                       : CachedImage(imageUrl: storyUrl),
                 ),
@@ -197,13 +201,12 @@ class _StoryScreenState extends State<StoryScreen>
     );
   }
 
-  Widget buildLoadingWidget() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        CircularProgressIndicator(),
-        SizedBox(height: 20),
-        Text('Loading'),
+  Widget buildLoadingWidget(String coverImgUrl) {
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        CachedImage(imageUrl: coverImgUrl),
+        const CircularProgressIndicator(),
       ],
     );
   }
