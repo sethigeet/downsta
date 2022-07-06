@@ -13,7 +13,6 @@ final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
   HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-  HttpHeaders.refererHeader: "https://www.instagram.com/",
   "X-IG-APP-ID": "936619743392459",
 };
 
@@ -29,6 +28,7 @@ abstract class ApiUrls {
   static const following = "/api/v1/friendships/{USERID}/following/";
 
   static const reels = "/api/v1/clips/user/";
+  static const videoInfo = "/api/v1/media/{ID}/info/";
 
   static const search = "/web/search/topsearch/";
   static const recentSearches = "/web/search/recent_searches/";
@@ -53,11 +53,14 @@ abstract class ApiQueryHashes {
   static const following = "58712303d941c6855d4e888c5f0cd22f";
   static const posts = "003056d32c2554def87228bc3fd9668a";
   static const stories = "303a4ae99711322310f25250d988f3b7";
+  static const videos = "bc78b344a68ed16dd5d7f264681c4c76";
 }
 
 class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic>? following;
   Map<String, dynamic> userInfo = {};
+  Map<String, dynamic> videos = {};
+  Map<String, dynamic> videosInfo = {};
   Map<String, dynamic> reels = {};
   Map<String, dynamic> search = {};
   Map<String, dynamic> stories = {};
@@ -369,15 +372,30 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return data;
   }
 
-  Future<Map<String, dynamic>> get({
-    required String queryHash,
-    required Map<String, dynamic> params,
-    required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
-    required Map<String, dynamic>? Function(Cache) cacheExtractor,
-    bool initial = false,
-    void Function(Cache)? cacheInitializer,
-    bool force = false,
-  }) async {
+  Future<Map<String, dynamic>> getVideoInfo(String id,
+      {bool force = false}) async {
+    var videosInfo = cache.videosInfo;
+    if (!force && videosInfo[id] != null) {
+      return videosInfo[id];
+    }
+
+    var res = await getMobileJson(ApiUrls.videoInfo.replaceAll("{ID}", id));
+    videosInfo[id] = res["items"].first;
+
+    notifyListeners();
+
+    return res;
+  }
+
+  Future<Map<String, dynamic>> get(
+      {required String queryHash,
+      required Map<String, dynamic> params,
+      required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
+      required Map<String, dynamic>? Function(Cache) cacheExtractor,
+      bool initial = false,
+      void Function(Cache)? cacheInitializer,
+      bool force = false,
+      String referer = "https://www.instagram.com/"}) async {
     if (initial) {
       var oldData = cacheExtractor(cache);
       if (!force && oldData != null) {
@@ -399,7 +417,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       );
     }
 
-    var res = await getGQLJson(queryHash, {"first": 25, ...params});
+    var res = await getGQLJson(
+      queryHash,
+      {"first": 25, ...params},
+      referer: referer,
+    );
     var newData = resExtractor(res["data"]);
     var oldData = cacheExtractor(cache);
     if (oldData == null) {
@@ -502,6 +524,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     String queryHash,
     Map<String, dynamic> variables, {
     String host = "www.instagram.com",
+    String referer = "www.instagram.com",
   }) async {
     var uri = Uri(
         scheme: "https",
@@ -514,6 +537,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
     var res = await client.get(uri, headers: {
       ...defaultHeaders,
+      HttpHeaders.refererHeader: referer,
       HttpHeaders.acceptHeader: "*/*",
       HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
       HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),

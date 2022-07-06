@@ -6,16 +6,16 @@ import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
 
-class Posts extends StatefulWidget {
-  const Posts({Key? key, required this.username}) : super(key: key);
+class Videos extends StatefulWidget {
+  const Videos({Key? key, required this.username}) : super(key: key);
 
   final String username;
 
   @override
-  State<Posts> createState() => _PostsState();
+  State<Videos> createState() => _VideosState();
 }
 
-class _PostsState extends State<Posts> {
+class _VideosState extends State<Videos> {
   final _scrollController = ScrollController();
   String? endCursor;
   bool selectionStarted = false;
@@ -46,14 +46,14 @@ class _PostsState extends State<Posts> {
       final api = Provider.of<Api>(context, listen: false);
 
       await api.get(
-        queryHash: ApiQueryHashes.posts,
+        queryHash: ApiQueryHashes.videos,
         params: {
           "id": await api.getUserId(widget.username),
           "after": endCursor
         },
-        resExtractor: (res) => res["user"]["edge_owner_to_timeline_media"],
-        cacheExtractor: (cache) =>
-            cache.userInfo[widget.username]["edge_owner_to_timeline_media"],
+        resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
+        cacheExtractor: (cache) => cache.videos[widget.username],
+        referer: "https://www.instagram.com/${widget.username}/channel/",
       );
     }
   }
@@ -65,25 +65,34 @@ class _PostsState extends State<Posts> {
     final downloader = Provider.of<Downloader>(context, listen: false);
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
-    final userInfo = api.cache.userInfo[widget.username];
-    if (userInfo == null) {
-      // it is already being requested by the `parent` so no need to request again!
+    final userVideos = api.cache.videos[widget.username];
+    if (userVideos == null) {
+      api.getUserId(widget.username).then((userId) => api.get(
+            queryHash: ApiQueryHashes.videos,
+            params: {"id": userId},
+            resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
+            cacheExtractor: (cache) => cache.videos[widget.username],
+            referer: "https://www.instagram.com/${widget.username}/channel/",
+            initial: true,
+            cacheInitializer: (cache) =>
+                cache.videos[widget.username] = {"edges": [], "page_info": {}},
+          ));
 
-      return Container();
+      return const Center(child: CircularProgressIndicator());
     }
 
-    var posts = userInfo["edge_owner_to_timeline_media"]["edges"];
+    var videos = userVideos["edges"];
 
-    if (posts.isEmpty) {
+    if (videos.isEmpty) {
       return const NoContent(
-        message: "This user has no posts!",
+        message: "This user has no videos!",
         icon: Icons.list_rounded,
       );
     }
 
-    var pageInfo = userInfo["edge_owner_to_timeline_media"]["page_info"];
-    var hasMorePosts = pageInfo["has_next_page"];
-    if (hasMorePosts) {
+    var pageInfo = userVideos["page_info"];
+    var hasMoreVideos = pageInfo["has_next_page"];
+    if (hasMoreVideos) {
       endCursor = pageInfo["end_cursor"];
     } else {
       endCursor = null;
@@ -92,25 +101,25 @@ class _PostsState extends State<Posts> {
     return Stack(
       children: [
         GridView.builder(
-            itemCount: hasMorePosts ? posts.length + 1 : posts.length,
+            itemCount: hasMoreVideos ? videos.length + 1 : videos.length,
             controller: _scrollController,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               childAspectRatio: 1,
             ),
             itemBuilder: (context, index) {
-              if (hasMorePosts && index == posts.length) {
+              if (hasMoreVideos && index == videos.length) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final post = posts[index]["node"];
-              final imageUrl = post["display_url"];
+              final video = videos[index]["node"];
+              final imageUrl = video["display_url"];
               final toBeDownloaded = toDownload.contains(index);
               return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(post["id"]),
+                  future: db.isPostDownloaded(video["id"]),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -118,7 +127,7 @@ class _PostsState extends State<Posts> {
 
                     final bool alreadyDownloaded = snap.data!;
                     return Hero(
-                      tag: "post-${post["id"]}",
+                      tag: "video-${video["id"]}",
                       child: GestureDetector(
                         onTap: () {
                           if (selectionStarted) {
@@ -134,9 +143,9 @@ class _PostsState extends State<Posts> {
                           } else {
                             Navigator.pushNamed(
                               context,
-                              PostScreen.routeName,
-                              arguments: PostScreenArguments(
-                                post: post,
+                              VideoScreen.routeName,
+                              arguments: VideoScreenArguments(
+                                video: video,
                                 username: widget.username,
                               ),
                             );
@@ -215,26 +224,25 @@ class _PostsState extends State<Posts> {
                     color: theme.colorScheme.primary,
                   ),
                   child: IconButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (selectionStarted) {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
-                        for (var idx in toDownload) {
-                          final post = posts[idx]["node"];
-                          List<String> images = [];
-                          if (post["edge_sidecar_to_children"] != null) {
-                            images.addAll(List<String>.from(
-                                post["edge_sidecar_to_children"]["edges"].map(
-                                    (post) => post["node"]["display_url"])));
-                          } else {
-                            images.add(post["display_url"]);
-                          }
 
-                          urls.addAll(images);
+                        final postIds =
+                            toDownload.map((idx) => videos[idx]["node"]["id"]);
+                        await Future.wait(
+                            postIds.map((id) => api.getVideoInfo(id)));
+                        for (var id in postIds) {
+                          final post = api.cache.videosInfo[id];
+                          final url = post["video_versions"].first["url"];
+                          urls.add(url);
+
                           histItems.add(HistoryItemsCompanion.insert(
                             postId: post["id"],
-                            coverImgUrl: post["display_url"],
-                            imgUrls: images.join(","),
+                            coverImgUrl: post["image_versions2"]["candidates"]
+                                .first["url"],
+                            imgUrls: url,
                             username: widget.username,
                           ));
                         }

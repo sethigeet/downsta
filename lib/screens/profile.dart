@@ -93,7 +93,7 @@ class _ProfileScreenState extends State<ProfileScreen>
                       Posts(username: username),
                       Stories(username: username),
                       Reels(username: username),
-                      const Center(child: Text("IGTV :)")),
+                      Videos(username: username),
                     ],
                   ),
           )
