@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 
-import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/services/services.dart';
 
 class HistoryItemCard extends StatelessWidget {
@@ -20,7 +19,12 @@ class HistoryItemCard extends StatelessWidget {
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             SizedBox(
               width: 100,
-              child: CachedImage(imageUrl: item.coverImgUrl),
+              child: item.coverImgBytes != null
+                  ? Image.memory(
+                      item.coverImgBytes!,
+                      fit: BoxFit.cover,
+                    )
+                  : null,
             ),
             Expanded(
               child: Container(

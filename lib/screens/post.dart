@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
@@ -140,7 +141,8 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                       if (toDownload.length > 1) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
                           postId: post["id"],
-                          coverImgUrl: post["display_url"],
+                          coverImgBytes: Value(await downloader
+                              .getImgBytes(post["display_url"])),
                           imgUrls: images.join(","),
                           username: username,
                         ));
@@ -148,11 +150,12 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                       downloader.download(toDownload, username);
                     }
                   },
-                  onTap: () {
+                  onTap: () async {
                     downloader.download(images, username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
                       postId: post["id"],
-                      coverImgUrl: post["display_url"],
+                      coverImgBytes: Value(
+                          await downloader.getImgBytes(post["display_url"])),
                       imgUrls: images.join(","),
                       username: username,
                     ));

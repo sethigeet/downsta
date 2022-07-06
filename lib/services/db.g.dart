@@ -11,14 +11,14 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
   final int id;
   final String postId;
   final String username;
-  final String coverImgUrl;
+  final Uint8List? coverImgBytes;
   final String imgUrls;
   final DateTime downloadTime;
   HistoryItem(
       {required this.id,
       required this.postId,
       required this.username,
-      required this.coverImgUrl,
+      this.coverImgBytes,
       required this.imgUrls,
       required this.downloadTime});
   factory HistoryItem.fromData(Map<String, dynamic> data, {String? prefix}) {
@@ -30,8 +30,8 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
           .mapFromDatabaseResponse(data['${effectivePrefix}post_id'])!,
       username: const StringType()
           .mapFromDatabaseResponse(data['${effectivePrefix}username'])!,
-      coverImgUrl: const StringType()
-          .mapFromDatabaseResponse(data['${effectivePrefix}cover_img_url'])!,
+      coverImgBytes: const BlobType()
+          .mapFromDatabaseResponse(data['${effectivePrefix}cover_img_bytes']),
       imgUrls: const StringType()
           .mapFromDatabaseResponse(data['${effectivePrefix}img_urls'])!,
       downloadTime: const DateTimeType()
@@ -44,7 +44,9 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
     map['id'] = Variable<int>(id);
     map['post_id'] = Variable<String>(postId);
     map['username'] = Variable<String>(username);
-    map['cover_img_url'] = Variable<String>(coverImgUrl);
+    if (!nullToAbsent || coverImgBytes != null) {
+      map['cover_img_bytes'] = Variable<Uint8List?>(coverImgBytes);
+    }
     map['img_urls'] = Variable<String>(imgUrls);
     map['download_time'] = Variable<DateTime>(downloadTime);
     return map;
@@ -55,7 +57,9 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
       id: Value(id),
       postId: Value(postId),
       username: Value(username),
-      coverImgUrl: Value(coverImgUrl),
+      coverImgBytes: coverImgBytes == null && nullToAbsent
+          ? const Value.absent()
+          : Value(coverImgBytes),
       imgUrls: Value(imgUrls),
       downloadTime: Value(downloadTime),
     );
@@ -68,7 +72,7 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
       id: serializer.fromJson<int>(json['id']),
       postId: serializer.fromJson<String>(json['postId']),
       username: serializer.fromJson<String>(json['username']),
-      coverImgUrl: serializer.fromJson<String>(json['coverImgUrl']),
+      coverImgBytes: serializer.fromJson<Uint8List?>(json['coverImgBytes']),
       imgUrls: serializer.fromJson<String>(json['imgUrls']),
       downloadTime: serializer.fromJson<DateTime>(json['downloadTime']),
     );
@@ -80,7 +84,7 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
       'id': serializer.toJson<int>(id),
       'postId': serializer.toJson<String>(postId),
       'username': serializer.toJson<String>(username),
-      'coverImgUrl': serializer.toJson<String>(coverImgUrl),
+      'coverImgBytes': serializer.toJson<Uint8List?>(coverImgBytes),
       'imgUrls': serializer.toJson<String>(imgUrls),
       'downloadTime': serializer.toJson<DateTime>(downloadTime),
     };
@@ -90,14 +94,14 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
           {int? id,
           String? postId,
           String? username,
-          String? coverImgUrl,
+          Uint8List? coverImgBytes,
           String? imgUrls,
           DateTime? downloadTime}) =>
       HistoryItem(
         id: id ?? this.id,
         postId: postId ?? this.postId,
         username: username ?? this.username,
-        coverImgUrl: coverImgUrl ?? this.coverImgUrl,
+        coverImgBytes: coverImgBytes ?? this.coverImgBytes,
         imgUrls: imgUrls ?? this.imgUrls,
         downloadTime: downloadTime ?? this.downloadTime,
       );
@@ -107,7 +111,7 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
           ..write('id: $id, ')
           ..write('postId: $postId, ')
           ..write('username: $username, ')
-          ..write('coverImgUrl: $coverImgUrl, ')
+          ..write('coverImgBytes: $coverImgBytes, ')
           ..write('imgUrls: $imgUrls, ')
           ..write('downloadTime: $downloadTime')
           ..write(')'))
@@ -116,7 +120,7 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
 
   @override
   int get hashCode =>
-      Object.hash(id, postId, username, coverImgUrl, imgUrls, downloadTime);
+      Object.hash(id, postId, username, coverImgBytes, imgUrls, downloadTime);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
@@ -124,7 +128,7 @@ class HistoryItem extends DataClass implements Insertable<HistoryItem> {
           other.id == this.id &&
           other.postId == this.postId &&
           other.username == this.username &&
-          other.coverImgUrl == this.coverImgUrl &&
+          other.coverImgBytes == this.coverImgBytes &&
           other.imgUrls == this.imgUrls &&
           other.downloadTime == this.downloadTime);
 }
@@ -133,14 +137,14 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
   final Value<int> id;
   final Value<String> postId;
   final Value<String> username;
-  final Value<String> coverImgUrl;
+  final Value<Uint8List?> coverImgBytes;
   final Value<String> imgUrls;
   final Value<DateTime> downloadTime;
   const HistoryItemsCompanion({
     this.id = const Value.absent(),
     this.postId = const Value.absent(),
     this.username = const Value.absent(),
-    this.coverImgUrl = const Value.absent(),
+    this.coverImgBytes = const Value.absent(),
     this.imgUrls = const Value.absent(),
     this.downloadTime = const Value.absent(),
   });
@@ -148,18 +152,17 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
     this.id = const Value.absent(),
     required String postId,
     required String username,
-    required String coverImgUrl,
+    this.coverImgBytes = const Value.absent(),
     required String imgUrls,
     this.downloadTime = const Value.absent(),
   })  : postId = Value(postId),
         username = Value(username),
-        coverImgUrl = Value(coverImgUrl),
         imgUrls = Value(imgUrls);
   static Insertable<HistoryItem> custom({
     Expression<int>? id,
     Expression<String>? postId,
     Expression<String>? username,
-    Expression<String>? coverImgUrl,
+    Expression<Uint8List?>? coverImgBytes,
     Expression<String>? imgUrls,
     Expression<DateTime>? downloadTime,
   }) {
@@ -167,7 +170,7 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
       if (id != null) 'id': id,
       if (postId != null) 'post_id': postId,
       if (username != null) 'username': username,
-      if (coverImgUrl != null) 'cover_img_url': coverImgUrl,
+      if (coverImgBytes != null) 'cover_img_bytes': coverImgBytes,
       if (imgUrls != null) 'img_urls': imgUrls,
       if (downloadTime != null) 'download_time': downloadTime,
     });
@@ -177,14 +180,14 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
       {Value<int>? id,
       Value<String>? postId,
       Value<String>? username,
-      Value<String>? coverImgUrl,
+      Value<Uint8List?>? coverImgBytes,
       Value<String>? imgUrls,
       Value<DateTime>? downloadTime}) {
     return HistoryItemsCompanion(
       id: id ?? this.id,
       postId: postId ?? this.postId,
       username: username ?? this.username,
-      coverImgUrl: coverImgUrl ?? this.coverImgUrl,
+      coverImgBytes: coverImgBytes ?? this.coverImgBytes,
       imgUrls: imgUrls ?? this.imgUrls,
       downloadTime: downloadTime ?? this.downloadTime,
     );
@@ -202,8 +205,8 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
     if (username.present) {
       map['username'] = Variable<String>(username.value);
     }
-    if (coverImgUrl.present) {
-      map['cover_img_url'] = Variable<String>(coverImgUrl.value);
+    if (coverImgBytes.present) {
+      map['cover_img_bytes'] = Variable<Uint8List?>(coverImgBytes.value);
     }
     if (imgUrls.present) {
       map['img_urls'] = Variable<String>(imgUrls.value);
@@ -220,7 +223,7 @@ class HistoryItemsCompanion extends UpdateCompanion<HistoryItem> {
           ..write('id: $id, ')
           ..write('postId: $postId, ')
           ..write('username: $username, ')
-          ..write('coverImgUrl: $coverImgUrl, ')
+          ..write('coverImgBytes: $coverImgBytes, ')
           ..write('imgUrls: $imgUrls, ')
           ..write('downloadTime: $downloadTime')
           ..write(')'))
@@ -255,12 +258,12 @@ class $HistoryItemsTable extends HistoryItems
       additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 100),
       type: const StringType(),
       requiredDuringInsert: true);
-  final VerificationMeta _coverImgUrlMeta =
-      const VerificationMeta('coverImgUrl');
+  final VerificationMeta _coverImgBytesMeta =
+      const VerificationMeta('coverImgBytes');
   @override
-  late final GeneratedColumn<String?> coverImgUrl = GeneratedColumn<String?>(
-      'cover_img_url', aliasedName, false,
-      type: const StringType(), requiredDuringInsert: true);
+  late final GeneratedColumn<Uint8List?> coverImgBytes =
+      GeneratedColumn<Uint8List?>('cover_img_bytes', aliasedName, true,
+          type: const BlobType(), requiredDuringInsert: false);
   final VerificationMeta _imgUrlsMeta = const VerificationMeta('imgUrls');
   @override
   late final GeneratedColumn<String?> imgUrls = GeneratedColumn<String?>(
@@ -276,7 +279,7 @@ class $HistoryItemsTable extends HistoryItems
           defaultValue: currentDateAndTime);
   @override
   List<GeneratedColumn> get $columns =>
-      [id, postId, username, coverImgUrl, imgUrls, downloadTime];
+      [id, postId, username, coverImgBytes, imgUrls, downloadTime];
   @override
   String get aliasedName => _alias ?? 'history_items';
   @override
@@ -301,13 +304,11 @@ class $HistoryItemsTable extends HistoryItems
     } else if (isInserting) {
       context.missing(_usernameMeta);
     }
-    if (data.containsKey('cover_img_url')) {
+    if (data.containsKey('cover_img_bytes')) {
       context.handle(
-          _coverImgUrlMeta,
-          coverImgUrl.isAcceptableOrUnknown(
-              data['cover_img_url']!, _coverImgUrlMeta));
-    } else if (isInserting) {
-      context.missing(_coverImgUrlMeta);
+          _coverImgBytesMeta,
+          coverImgBytes.isAcceptableOrUnknown(
+              data['cover_img_bytes']!, _coverImgBytesMeta));
     }
     if (data.containsKey('img_urls')) {
       context.handle(_imgUrlsMeta,

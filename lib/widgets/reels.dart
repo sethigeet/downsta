@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 
 import 'package:downsta/services/services.dart';
@@ -211,7 +212,7 @@ class _ReelsState extends State<Reels> {
                     color: theme.colorScheme.primary,
                   ),
                   child: IconButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (selectionStarted) {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
@@ -221,8 +222,9 @@ class _ReelsState extends State<Reels> {
                           urls.add(videoUrl);
                           histItems.add(HistoryItemsCompanion.insert(
                             postId: reel["id"],
-                            coverImgUrl: reel["image_versions2"]["candidates"]
-                                .last["url"],
+                            coverImgBytes: Value(await downloader.getImgBytes(
+                                reel["image_versions2"]["candidates"]
+                                    .last["url"])),
                             imgUrls: videoUrl,
                             username: widget.username,
                           ));

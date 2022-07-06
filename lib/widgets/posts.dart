@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
@@ -215,7 +216,7 @@ class _PostsState extends State<Posts> {
                     color: theme.colorScheme.primary,
                   ),
                   child: IconButton(
-                    onPressed: () {
+                    onPressed: () async {
                       if (selectionStarted) {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
@@ -233,7 +234,8 @@ class _PostsState extends State<Posts> {
                           urls.addAll(images);
                           histItems.add(HistoryItemsCompanion.insert(
                             postId: post["id"],
-                            coverImgUrl: post["display_url"],
+                            coverImgBytes: Value(await downloader
+                                .getImgBytes(post["display_url"])),
                             imgUrls: images.join(","),
                             username: widget.username,
                           ));

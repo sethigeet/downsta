@@ -2,6 +2,7 @@ import 'dart:collection';
 import 'dart:io';
 
 import 'package:downsta/globals.dart';
+import 'package:drift/drift.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 
@@ -95,6 +96,18 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
         await file.copy("$downloadDir/${item.filename}");
       }
     }
+  }
+
+  Future<Uint8List?> getImgBytes(String url) async {
+    var stream = cacheManager.getImageFile(url, key: getCacheKey(url));
+
+    await for (var result in stream) {
+      if (result is FileInfo) {
+        return result.file.readAsBytesSync();
+      }
+    }
+
+    return null;
   }
 
   void _notify() {

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 
 import 'package:downsta/services/services.dart';
@@ -229,19 +230,20 @@ class _VideosState extends State<Videos> {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
 
-                        final postIds =
+                        final videoIds =
                             toDownload.map((idx) => videos[idx]["node"]["id"]);
                         await Future.wait(
-                            postIds.map((id) => api.getVideoInfo(id)));
-                        for (var id in postIds) {
-                          final post = api.cache.videosInfo[id];
-                          final url = post["video_versions"].first["url"];
+                            videoIds.map((id) => api.getVideoInfo(id)));
+                        for (var id in videoIds) {
+                          final video = api.cache.videosInfo[id];
+                          final url = video["video_versions"].first["url"];
                           urls.add(url);
 
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: post["id"],
-                            coverImgUrl: post["image_versions2"]["candidates"]
-                                .first["url"],
+                            postId: video["id"].split("_").first,
+                            coverImgBytes: Value(await downloader.getImgBytes(
+                                video["image_versions2"]["candidates"]
+                                    .first["url"])),
                             imgUrls: url,
                             username: widget.username,
                           ));

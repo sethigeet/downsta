@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -133,7 +134,8 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                       if (toDownload.contains(videoUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
                           postId: reel["id"],
-                          coverImgUrl: imageUrl,
+                          coverImgBytes:
+                              Value(await downloader.getImgBytes(imageUrl)),
                           imgUrls: videoUrl,
                           username: args.username,
                         ));
@@ -141,11 +143,12 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                       downloader.download(toDownload, args.username);
                     }
                   },
-                  onTap: () {
+                  onTap: () async {
                     downloader.download([videoUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
                       postId: reel["id"],
-                      coverImgUrl: imageUrl,
+                      coverImgBytes:
+                          Value(await downloader.getImgBytes(imageUrl)),
                       imgUrls: videoUrl,
                       username: args.username,
                     ));

@@ -51,8 +51,7 @@ class CookieJar {
   }
 
   Future<void> deleteCookies(String username) async {
-    print("deleting cookies...");
-    // final path = await CookieJar._getDirPath(username);
-    // await Directory(path).delete(recursive: true);
+    final path = await CookieJar._getDirPath(username);
+    await Directory(path).delete(recursive: true);
   }
 }

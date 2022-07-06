@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
@@ -146,7 +147,8 @@ class _StoryScreenState extends State<StoryScreen>
                       if (toDownload.contains(storyUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
                           postId: story["id"],
-                          coverImgUrl: coverImgUrl,
+                          coverImgBytes:
+                              Value(await downloader.getImgBytes(coverImgUrl)),
                           imgUrls: storyUrl,
                           username: args.username,
                         ));
@@ -154,11 +156,12 @@ class _StoryScreenState extends State<StoryScreen>
                       downloader.download(toDownload, args.username);
                     }
                   },
-                  onTap: () {
+                  onTap: () async {
                     downloader.download([storyUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
                       postId: story["id"],
-                      coverImgUrl: coverImgUrl,
+                      coverImgBytes:
+                          Value(await downloader.getImgBytes(coverImgUrl)),
                       imgUrls: storyUrl,
                       username: args.username,
                     ));

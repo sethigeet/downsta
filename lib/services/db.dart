@@ -134,9 +134,13 @@ class DB extends _$DB {
     await batch((batch) {
       batch.insertAll<HistoryItems, HistoryItem>(historyItems, items);
     });
+    for (var item in items) {
+      _isDownloadedCache[item.postId.value] = true;
+    }
   }
 
   Future<void> saveItemToHistory(HistoryItemsCompanion item) async {
     await into(historyItems).insert(item);
+    _isDownloadedCache[item.postId.value] = true;
   }
 }
