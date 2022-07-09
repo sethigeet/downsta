@@ -74,7 +74,7 @@ class _VideoScreenState extends State<VideoScreen>
 
     final args =
         ModalRoute.of(context)!.settings.arguments as VideoScreenArguments;
-    final video = api.cache.videosInfo[args.video["id"]];
+    final video = api.cache.postsInfo[args.video["id"]];
     if (video == null) {
       api.getVideoInfo(args.video["id"]);
 

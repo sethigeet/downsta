@@ -54,13 +54,14 @@ abstract class ApiQueryHashes {
   static const posts = "003056d32c2554def87228bc3fd9668a";
   static const stories = "303a4ae99711322310f25250d988f3b7";
   static const videos = "bc78b344a68ed16dd5d7f264681c4c76";
+  static const postInfo = "2b0673e0dc4580674a88d426fe00ea90";
 }
 
 class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic>? following;
   Map<String, dynamic> userInfo = {};
   Map<String, dynamic> videos = {};
-  Map<String, dynamic> videosInfo = {};
+  Map<String, dynamic> postsInfo = {};
   Map<String, dynamic> reels = {};
   Map<String, dynamic> search = {};
   Map<String, dynamic> stories = {};
@@ -374,17 +375,36 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<Map<String, dynamic>> getVideoInfo(String id,
       {bool force = false}) async {
-    var videosInfo = cache.videosInfo;
-    if (!force && videosInfo[id] != null) {
-      return videosInfo[id];
+    var postsInfo = cache.postsInfo;
+    if (!force && postsInfo[id] != null) {
+      return postsInfo[id];
     }
 
     var res = await getMobileJson(ApiUrls.videoInfo.replaceAll("{ID}", id));
-    videosInfo[id] = res["items"].first;
+    postsInfo[id] = res["items"].first;
 
     notifyListeners();
 
     return res;
+  }
+
+  Future<Map<String, dynamic>?> getPostInfo(String shortCode,
+      {bool force = false}) async {
+    var postsInfo = cache.postsInfo;
+    if (!force && postsInfo[shortCode] != null) {
+      return postsInfo[shortCode];
+    }
+
+    var res = await getGQLJson(
+      ApiQueryHashes.postInfo,
+      {"shortcode": shortCode},
+    );
+    final info = res["data"]["shortcode_media"];
+    postsInfo[shortCode] = info;
+
+    notifyListeners();
+
+    return info;
   }
 
   Future<Map<String, dynamic>> get(

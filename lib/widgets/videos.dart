@@ -235,7 +235,7 @@ class _VideosState extends State<Videos> {
                         await Future.wait(
                             videoIds.map((id) => api.getVideoInfo(id)));
                         for (var id in videoIds) {
-                          final video = api.cache.videosInfo[id];
+                          final video = api.cache.postsInfo[id];
                           final url = video["video_versions"].first["url"];
                           urls.add(url);
 
