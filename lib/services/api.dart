@@ -55,6 +55,8 @@ abstract class ApiQueryHashes {
   static const stories = "303a4ae99711322310f25250d988f3b7";
   static const videos = "bc78b344a68ed16dd5d7f264681c4c76";
   static const postInfo = "2b0673e0dc4580674a88d426fe00ea90";
+  static const highlights = "7c16654f22c819fb63d1183034a5162f";
+  static const highlightItems = "45246d3fe16ccc6577e0bd297a5db1ab";
 }
 
 class Cache with DiagnosticableTreeMixin {
@@ -65,6 +67,8 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, dynamic> reels = {};
   Map<String, dynamic> search = {};
   Map<String, dynamic> stories = {};
+  Map<String, dynamic> highlights = {};
+  Map<String, dynamic> highlightItems = {};
 
   void resetCache() {
     following = null;
@@ -268,6 +272,40 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return info;
   }
 
+  Future<Map<String, dynamic>> getVideoInfo(String id,
+      {bool force = false}) async {
+    var postsInfo = cache.postsInfo;
+    if (!force && postsInfo[id] != null) {
+      return postsInfo[id];
+    }
+
+    var res = await getMobileJson(ApiUrls.videoInfo.replaceAll("{ID}", id));
+    postsInfo[id] = res["items"].first;
+
+    notifyListeners();
+
+    return res;
+  }
+
+  Future<Map<String, dynamic>?> getPostInfo(String shortCode,
+      {bool force = false}) async {
+    var postsInfo = cache.postsInfo;
+    if (!force && postsInfo[shortCode] != null) {
+      return postsInfo[shortCode];
+    }
+
+    var res = await getGQLJson(
+      ApiQueryHashes.postInfo,
+      {"shortcode": shortCode},
+    );
+    final info = res["data"]["shortcode_media"];
+    postsInfo[shortCode] = info;
+
+    notifyListeners();
+
+    return info;
+  }
+
   Future<String> getProfilePicUrl(String username, {bool force = false}) async {
     var userInfo = cache.userInfo;
     if (!force && userInfo[username]["hd_profile_pic_url_info"] != null) {
@@ -373,38 +411,55 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return data;
   }
 
-  Future<Map<String, dynamic>> getVideoInfo(String id,
+  Future<List<dynamic>> getHighlights(String username,
       {bool force = false}) async {
-    var postsInfo = cache.postsInfo;
-    if (!force && postsInfo[id] != null) {
-      return postsInfo[id];
-    }
-
-    var res = await getMobileJson(ApiUrls.videoInfo.replaceAll("{ID}", id));
-    postsInfo[id] = res["items"].first;
-
-    notifyListeners();
-
-    return res;
-  }
-
-  Future<Map<String, dynamic>?> getPostInfo(String shortCode,
-      {bool force = false}) async {
-    var postsInfo = cache.postsInfo;
-    if (!force && postsInfo[shortCode] != null) {
-      return postsInfo[shortCode];
+    var highlights = cache.highlights;
+    if (!force && highlights[username] != null) {
+      return highlights[username];
     }
 
     var res = await getGQLJson(
-      ApiQueryHashes.postInfo,
-      {"shortcode": shortCode},
+      ApiQueryHashes.highlights,
+      {
+        "user_id": await getUserId(username),
+        "include_chaining": false,
+        "include_reel": false,
+        "include_suggested_users": false,
+        "include_logged_out_extras": false,
+        "include_highlight_reels": true
+      },
     );
-    final info = res["data"]["shortcode_media"];
-    postsInfo[shortCode] = info;
+    final edges = res["data"]["user"]["edge_highlight_reels"]["edges"];
+    highlights[username] = edges;
 
     notifyListeners();
 
-    return info;
+    return edges;
+  }
+
+  Future<Map<String, dynamic>> getHighlightItems(String highlightId,
+      {bool force = false}) async {
+    var highlightItems = cache.highlightItems;
+    if (!force && highlightItems[highlightId] != null) {
+      return highlightItems[highlightId];
+    }
+
+    var res = await getGQLJson(
+      ApiQueryHashes.highlightItems,
+      {
+        "reel_ids": [],
+        "tag_names": [],
+        "location_ids": [],
+        "highlight_reel_ids": [highlightId],
+        "precomposed_overlay": false
+      },
+    );
+    final reelsMedia = res["data"]["reels_media"][0];
+    highlightItems[highlightId] = reelsMedia;
+
+    notifyListeners();
+
+    return reelsMedia;
   }
 
   Future<Map<String, dynamic>> get(

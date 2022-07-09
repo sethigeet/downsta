@@ -1,3 +1,4 @@
+export './highlightItems.dart';
 export './history.dart';
 export './home.dart';
 export './login.dart';
