@@ -143,4 +143,9 @@ class DB extends _$DB {
     await into(historyItems).insert(item);
     _isDownloadedCache[item.postId.value] = true;
   }
+
+  Future<void> deleteItemFromHistory(int id) async {
+    var query = delete(historyItems)..where((item) => item.id.equals(id));
+    await query.go();
+  }
 }

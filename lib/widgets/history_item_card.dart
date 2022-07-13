@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 
+import 'package:provider/provider.dart';
+
 import 'package:downsta/services/services.dart';
 
 class HistoryItemCard extends StatelessWidget {
@@ -12,6 +14,9 @@ class HistoryItemCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final db = Provider.of<DB>(context);
+    final downloader = Provider.of<Downloader>(context);
+
     return GestureDetector(
       child: Card(
         child: SizedBox(
@@ -48,7 +53,36 @@ class HistoryItemCard extends StatelessWidget {
               ),
             ),
             IconButton(
-              onPressed: () {},
+              onPressed: () async {
+                await showModalBottomSheet(
+                    context: context,
+                    builder: (context) {
+                      return SizedBox(
+                        height: 100,
+                        child: Column(children: [
+                          ListTile(
+                            onTap: () {
+                              downloader.download(
+                                item.imgUrls.split(","),
+                                item.username,
+                              );
+                              Navigator.pop(context);
+                            },
+                            title: const Text("Download again"),
+                            leading: const Icon(Icons.download_rounded),
+                          ),
+                          ListTile(
+                            onTap: () {
+                              db.deleteItemFromHistory(item.id);
+                              Navigator.pop(context);
+                            },
+                            title: const Text("Delete"),
+                            leading: const Icon(Icons.delete_forever_rounded),
+                          ),
+                        ]),
+                      );
+                    });
+              },
               icon: const Icon(Icons.more_vert),
             )
           ]),
