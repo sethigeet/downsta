@@ -22,14 +22,11 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  final _scrollController = ScrollController();
-  String? endCursor;
+  int index = 0;
 
   @override
   void initState() {
     super.initState();
-
-    _scrollController.addListener(_scrollListener);
 
     if (Platform.isAndroid) {
       ShareService()
@@ -129,42 +126,11 @@ class _HomeScreenState extends State<HomeScreen> {
   }
 
   @override
-  void dispose() {
-    _scrollController.removeListener(_scrollListener);
-
-    super.dispose();
-  }
-
-  void _scrollListener() async {
-    if (endCursor == null) {
-      return;
-    }
-
-    // if (_scrollController.position.extentAfter <= 100) {
-    if (_scrollController.position.extentAfter == 0) {
-      final api = Provider.of<Api>(context, listen: false);
-
-      await api.get(
-        queryHash: ApiQueryHashes.following,
-        params: {"id": await api.getUserId(api.username), "after": endCursor},
-        resExtractor: (res) => res["user"]["edge_follow"],
-        cacheExtractor: (cache) => cache.following!,
-      );
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final api = context.watch<Api>();
-    if (api.cache.following == null) {
-      api.getUserId(api.username).then((userId) => api.get(
-            queryHash: ApiQueryHashes.following,
-            params: {"id": userId},
-            resExtractor: (res) => res["user"]["edge_follow"],
-            cacheExtractor: (cache) => cache.following,
-            initial: true,
-            cacheInitializer: (cache) => cache.following = {"edges": []},
-          ));
+    var me = api.cache.userInfo[api.username];
+    if (me == null) {
+      api.getUserInfo(api.username);
 
       return Scaffold(
         appBar: AppBar(
@@ -173,16 +139,6 @@ class _HomeScreenState extends State<HomeScreen> {
         body: const Center(child: CircularProgressIndicator()),
       );
     }
-
-    List<dynamic> users = api.cache.following!["edges"] ?? [];
-    var pageInfo = api.cache.following!["page_info"];
-    var hasMorePosts = pageInfo["has_next_page"];
-    if (hasMorePosts) {
-      endCursor = pageInfo["end_cursor"];
-    } else {
-      endCursor = null;
-    }
-    var me = api.cache.userInfo[api.username];
 
     return Scaffold(
       appBar: AppBar(
@@ -201,22 +157,18 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: MyDrawer(user: me),
-      body: ListView.builder(
-          controller: _scrollController,
-          physics: const BouncingScrollPhysics(
-              parent: AlwaysScrollableScrollPhysics()),
-          itemCount: users.length + (hasMorePosts ? 1 : 0),
-          itemBuilder: (context, index) {
-            if (index == users.length) {
-              return const Center(child: CircularProgressIndicator());
-            }
-
-            var user = users[index]["node"];
-            return UserCard(
-                fullName: user["full_name"],
-                username: user["username"],
-                profilePicUrl: user["profile_pic_url"]);
-          }),
+      bottomNavigationBar: NavigationBar(
+        selectedIndex: index,
+        onDestinationSelected: (newIndex) => setState(() => index = newIndex),
+        destinations: const [
+          NavigationDestination(icon: Icon(Icons.person), label: "Following"),
+          NavigationDestination(icon: Icon(Icons.feed_rounded), label: "Feed"),
+        ],
+      ),
+      body: [
+        const Following(),
+        const Center(child: Text("Feed!")),
+      ][index],
     );
   }
 }
