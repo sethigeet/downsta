@@ -36,8 +36,8 @@ class _ProfileScreenState extends State<ProfileScreen>
     final username = args.username;
 
     final api = context.watch<Api>();
-    final userInfo = api.cache.userInfo[username];
-    if (userInfo == null) {
+    final user = api.cache.profiles[username];
+    if (user == null) {
       api.getUserInfo(username);
 
       return Scaffold(
@@ -48,8 +48,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       );
     }
 
-    final isPrivate = userInfo["is_private"] == true &&
-        userInfo["followed_by_viewer"] != true;
+    final isPrivate = user.isPrivate && !user.followedByViewer;
 
     return Scaffold(
       body: CustomScrollView(
@@ -62,7 +61,7 @@ class _ProfileScreenState extends State<ProfileScreen>
             actions: const [DownloadStatusIndicator()],
           ),
           SliverToBoxAdapter(
-            child: ProfileHeader(user: userInfo),
+            child: ProfileHeader(user: user),
           ),
           if (!isPrivate)
             SliverPersistentHeader(

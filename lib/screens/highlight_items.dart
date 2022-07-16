@@ -2,11 +2,12 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 
 class HighlightItemsScreenArguments {
-  dynamic highlight;
+  Post highlight;
   String username;
 
   HighlightItemsScreenArguments({
@@ -32,9 +33,9 @@ class _HighlightItemsScreenState extends State<HighlightItemsScreen> {
     final username = args.username;
 
     final api = context.watch<Api>();
-    final items = api.cache.highlightItems[highlight["id"]];
+    final items = api.cache.highlightItems[highlight.id];
     if (items == null) {
-      api.getHighlightItems(highlight["id"]);
+      api.getHighlightItems(highlight.id);
 
       return Scaffold(
         appBar: AppBar(),

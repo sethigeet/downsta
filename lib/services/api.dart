@@ -5,8 +5,9 @@ import 'package:flutter/foundation.dart';
 
 import 'package:http/http.dart' as http;
 
-import 'package:downsta/helpers/helpers.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
+import 'package:downsta/helpers/helpers.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 
@@ -60,29 +61,41 @@ abstract class ApiQueryHashes {
 }
 
 class Cache with DiagnosticableTreeMixin {
-  Map<String, dynamic>? following;
-  Map<String, dynamic> userInfo = {};
-  Map<String, dynamic> videos = {};
-  Map<String, dynamic> postsInfo = {};
-  Map<String, dynamic> reels = {};
+  PaginatedResponse<Profile>? following;
+  Map<String, Profile> profiles = {};
+  Map<String, PaginatedResponse<Post>> videos = {};
+  Map<String, Video> postsInfo = {};
+  Map<String, PaginatedResponse<Reel>> reels = {};
   Map<String, dynamic> search = {};
-  Map<String, dynamic> stories = {};
+  Map<String, List<Story>> stories = {};
   Map<String, dynamic> highlights = {};
-  Map<String, dynamic> highlightItems = {};
+  Map<String, List<Story>> highlightItems = {};
 
   void resetCache() {
     following = null;
-    userInfo = {};
+    profiles = {};
+    videos = {};
+    postsInfo = {};
     reels = {};
     search = {};
+    stories = {};
+    highlights = {};
+    highlightItems = {};
   }
 
   @override
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
 
-    properties.add(StringProperty("userInfo", userInfo.toString()));
     properties.add(StringProperty("following", following.toString()));
+    properties.add(StringProperty("profiles", profiles.toString()));
+    properties.add(StringProperty("videos", videos.toString()));
+    properties.add(StringProperty("postsInfo", postsInfo.toString()));
+    properties.add(StringProperty("reels", reels.toString()));
+    properties.add(StringProperty("search", search.toString()));
+    properties.add(StringProperty("stories", stories.toString()));
+    properties.add(StringProperty("highlights", highlights.toString()));
+    properties.add(StringProperty("highlightItems", highlightItems.toString()));
   }
 }
 
@@ -253,42 +266,40 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
   }
 
-  Future<Map<String, dynamic>> getUserInfo(String username,
-      {bool force = false}) async {
-    var userInfo = cache.userInfo;
+  Future<Profile> getUserInfo(String username, {bool force = false}) async {
+    var userInfo = cache.profiles;
     if (!force && userInfo[username] != null) {
-      return userInfo[username];
+      return userInfo[username]!;
     }
 
     var res = await getMobileJson(
       ApiUrls.userInfo,
       queryParameters: {"username": username},
     );
-    var info = res["data"]["user"];
-    userInfo[username] = info;
+    var profile = Profile(res["data"]["user"]);
+    userInfo[username] = profile;
 
     notifyListeners();
 
-    return info;
+    return profile;
   }
 
-  Future<Map<String, dynamic>> getVideoInfo(String id,
-      {bool force = false}) async {
-    var postsInfo = cache.postsInfo;
-    if (!force && postsInfo[id] != null) {
-      return postsInfo[id];
+  Future<Video> getVideoInfo(String id, {bool force = false}) async {
+    var videosInfo = cache.postsInfo;
+    if (!force && videosInfo[id] != null) {
+      return videosInfo[id]!;
     }
 
     var res = await getMobileJson(ApiUrls.videoInfo.replaceAll("{ID}", id));
-    postsInfo[id] = res["items"].first;
+    final video = Video(res["items"].first);
+    videosInfo[id] = video;
 
     notifyListeners();
 
-    return res;
+    return video;
   }
 
-  Future<Map<String, dynamic>?> getPostInfo(String shortCode,
-      {bool force = false}) async {
+  Future<Post?> getPostInfo(String shortCode, {bool force = false}) async {
     var postsInfo = cache.postsInfo;
     if (!force && postsInfo[shortCode] != null) {
       return postsInfo[shortCode];
@@ -307,41 +318,41 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   }
 
   Future<String> getProfilePicUrl(String username, {bool force = false}) async {
-    var userInfo = cache.userInfo;
-    if (!force && userInfo[username]["hd_profile_pic_url_info"] != null) {
-      return userInfo[username]["hd_profile_pic_url_info"]["url"];
+    var profile = cache.profiles[username]!;
+    if (!force && profile.hdProfilePicAvailable) {
+      return profile.profilePicUrlHd;
     }
 
     var res = await getMobileJson(
-      ApiUrls.userInfo2.replaceAll("{USERID}", userInfo[username]["id"]),
+      ApiUrls.userInfo2.replaceAll("{USERID}", profile.id),
     );
     var info = res["user"];
-    userInfo[username].addAll(info);
+    profile.update(info);
 
-    return info["hd_profile_pic_url_info"]["url"];
+    return profile.profilePicUrlHd;
   }
 
   Future<String> getUserId(
     String username, {
     bool force = false,
   }) async {
-    var userInfo = cache.userInfo;
-    if (!force && userInfo[username] != null) {
-      return userInfo[username]["id"];
+    var profile = cache.profiles[username];
+    if (!force && profile != null) {
+      return profile.id;
     }
 
     var info = await getUserInfo(
       username,
       force: force,
     );
-    return info["id"];
+    return info.id;
   }
 
-  Future<Map<String, dynamic>> getReels(String username,
+  Future<PaginatedResponse<Reel>> getReels(String username,
       {String endCursor = "", bool force = false}) async {
     var reels = cache.reels;
     if (endCursor == "" && !force && reels[username] != null) {
-      return reels[username];
+      return reels[username]!;
     }
 
     var res = await postMobileJson(
@@ -353,16 +364,32 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         "include_feed_video": "false",
       },
     );
-    if (reels[username] != null) {
-      reels[username]["items"].addAll(res["items"]);
-      reels[username]["paging_info"] = res["paging_info"];
+
+    var reel = reels[username];
+    if (reel != null) {
+      reel.addEdges(
+          List<Reel>.from(res["items"].map((item) => Reel(item["media"]))));
+      var pagingInfo = res["paging_info"];
+      reel.updatePageInfo({
+        "has_next_page": pagingInfo["more_available"],
+        "end_cursor": pagingInfo["max_id"],
+      });
     } else {
-      reels[username] = res;
+      var temp = PaginatedResponse<Reel>.empty();
+      temp.addEdges(
+          List<Reel>.from(res["items"].map((item) => Reel(item["media"]))));
+      var pagingInfo = res["paging_info"];
+      temp.updatePageInfo({
+        "has_next_page": pagingInfo["more_available"],
+        "end_cursor": pagingInfo["max_id"],
+      });
+
+      reels[username] = temp;
     }
 
     notifyListeners();
 
-    return res;
+    return reels[username]!;
   }
 
   Future<Map<String, dynamic>> getSearchRes(String query,
@@ -390,11 +417,10 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return res;
   }
 
-  Future<Map<String, dynamic>> getStories(String username,
-      {bool force = false}) async {
+  Future<List<Story>> getStories(String username, {bool force = false}) async {
     var stories = cache.stories;
     if (!force && stories[username] != null) {
-      return stories[username];
+      return stories[username]!;
     }
 
     final id = await getUserId(username);
@@ -403,7 +429,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       "precomposed_overlay": false,
     });
     final reelsMedia = res["data"]["reels_media"];
-    Map<String, dynamic> data = reelsMedia.isEmpty ? {} : reelsMedia[0];
+    List<Story> data = reelsMedia.isEmpty
+        ? []
+        : List<Story>.from(reelsMedia[0]["items"].map((node) => Story(node)));
     stories[username] = data;
 
     notifyListeners();
@@ -437,11 +465,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return edges;
   }
 
-  Future<Map<String, dynamic>> getHighlightItems(String highlightId,
+  Future<List<Story>> getHighlightItems(String highlightId,
       {bool force = false}) async {
     var highlightItems = cache.highlightItems;
     if (!force && highlightItems[highlightId] != null) {
-      return highlightItems[highlightId];
+      return highlightItems[highlightId]!;
     }
 
     var res = await getGQLJson(
@@ -455,18 +483,21 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       },
     );
     final reelsMedia = res["data"]["reels_media"][0];
-    highlightItems[highlightId] = reelsMedia;
+    List<Story> items =
+        List<Story>.from(reelsMedia["items"].map((node) => Story(node)));
+    highlightItems[highlightId] = items;
 
     notifyListeners();
 
-    return reelsMedia;
+    return items;
   }
 
-  Future<Map<String, dynamic>> get(
+  Future<PaginatedResponse<T>> get<T>(
       {required String queryHash,
       required Map<String, dynamic> params,
       required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
-      required Map<String, dynamic>? Function(Cache) cacheExtractor,
+      required PaginatedResponse<T>? Function(Cache) cacheExtractor,
+      required T Function(Map<String, dynamic>) nodeConverter,
       bool initial = false,
       void Function(Cache)? cacheInitializer,
       bool force = false,
@@ -481,10 +512,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         throw ErrorHint(
             "cacheInitializer cannot be null if this is the initial request and there is no cached data available!");
       }
-      return get(
+      return get<T>(
         queryHash: queryHash,
         params: params,
         resExtractor: resExtractor,
+        nodeConverter: nodeConverter,
         cacheExtractor: (cache) {
           cacheInitializer(cache);
           return cacheExtractor(cache);
@@ -503,12 +535,13 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       throw ErrorHint(
           "cached data cannot be null if this is not the initial request");
     }
-    oldData["page_info"] = newData["page_info"];
-    oldData["edges"].addAll(newData["edges"]);
+    oldData.updatePageInfo(newData["page_info"]);
+    oldData.addEdges(List<T>.from(
+        newData["edges"].map((edge) => nodeConverter(edge["node"]))));
 
     notifyListeners();
 
-    return newData;
+    return oldData;
   }
 
   Future<dynamic> getJson(String path,

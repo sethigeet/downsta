@@ -6,11 +6,12 @@ import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 
 class VideoScreenArguments {
-  dynamic video;
+  Post video;
   String username;
 
   VideoScreenArguments({
@@ -74,15 +75,15 @@ class _VideoScreenState extends State<VideoScreen>
 
     final args =
         ModalRoute.of(context)!.settings.arguments as VideoScreenArguments;
-    final video = api.cache.postsInfo[args.video["id"]];
+    final video = api.cache.postsInfo[args.video.id];
     if (video == null) {
-      api.getVideoInfo(args.video["id"]);
+      api.getVideoInfo(args.video.id);
 
       return const Center(child: CircularProgressIndicator());
     }
 
-    String coverImgUrl = video["image_versions2"]["candidates"].first["url"];
-    String videoUrl = video["video_versions"].first["url"];
+    String coverImgUrl = video.displayUrl;
+    String videoUrl = video.urls.first;
 
     initializePlayer(videoUrl, coverImgUrl);
 
@@ -144,7 +145,7 @@ class _VideoScreenState extends State<VideoScreen>
                     if (toDownload != null) {
                       if (toDownload.contains(videoUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: video["id"],
+                          postId: video.id,
                           coverImgBytes:
                               Value(await downloader.getImgBytes(coverImgUrl)),
                           imgUrls: videoUrl,
@@ -157,7 +158,7 @@ class _VideoScreenState extends State<VideoScreen>
                   onTap: () async {
                     downloader.download([videoUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: video["id"],
+                      postId: video.id,
                       coverImgBytes:
                           Value(await downloader.getImgBytes(coverImgUrl)),
                       imgUrls: videoUrl,
@@ -183,7 +184,7 @@ class _VideoScreenState extends State<VideoScreen>
           children: [
             Expanded(
               child: Hero(
-                tag: "video-${video["id"]}",
+                tag: "video-${video.id}",
                 child: Center(
                   child: _chewieController == null
                       ? buildLoadingWidget(coverImgUrl)

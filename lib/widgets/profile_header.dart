@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
@@ -13,7 +14,7 @@ class ProfileHeader extends StatefulWidget {
     required this.user,
   }) : super(key: key);
 
-  final Map<String, dynamic> user;
+  final Profile user;
 
   @override
   State<ProfileHeader> createState() => _ProfileHeaderState();
@@ -26,9 +27,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
 
     final api = Provider.of<Api>(context, listen: false);
 
-    final username = widget.user["username"];
-    final fullName = widget.user["full_name"];
-    final profilePicUrl = widget.user["profile_pic_url"];
+    final username = widget.user.username;
+    final fullName = widget.user.fullName;
+    final profilePicUrl = widget.user.profilePicUrl;
 
     return Column(children: [
       Hero(
@@ -66,14 +67,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
   }
 
   void _gotoPostScreen(String url) {
-    final username = widget.user["username"];
+    final username = widget.user.username;
     Navigator.pushNamed(context, PostScreen.routeName,
         arguments: PostScreenArguments(
-          post: {
+          post: Post({
             "display_url": url,
             "id":
                 "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
-          },
+          }),
           username: username,
         ));
   }

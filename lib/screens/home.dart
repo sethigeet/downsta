@@ -6,11 +6,12 @@ import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
-import 'package:downsta/screens/screens.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
-import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/helpers/helpers.dart';
 import 'package:downsta/utils.dart';
+import 'package:downsta/screens/screens.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -70,34 +71,14 @@ class _HomeScreenState extends State<HomeScreen> {
         return;
       }
 
-      late String coverImgUrl;
-      final List<String> urls = [];
-      if (postInfo["is_video"]) {
-        coverImgUrl = postInfo["display_url"];
-        urls.add(postInfo["video_url"]);
-      } else if (postInfo["edge_sidecar_to_children"] != null) {
-        coverImgUrl = postInfo["display_url"];
-        final imgs = postInfo["edge_sidecar_to_children"]["edges"];
-        urls.addAll(List<String>.from(imgs.map((img) {
-          final node = img["node"];
-          if (node["is_video"]) {
-            return node["video_url"];
-          }
-          return node["display_resources"].last["src"];
-        })));
-      } else if (postInfo["display_resources"] != null) {
-        coverImgUrl = postInfo["display_url"];
-        urls.add(postInfo["display_resources"].last["src"]);
-      } else {
-        throw Error();
-      }
-
-      final username = postInfo["owner"]["username"];
+      final coverImgUrl = postInfo.displayUrl;
+      final urls = postInfo.urls;
+      final username = postInfo.username;
       downloader.download(urls, username);
       downloader
           .getImgBytes(coverImgUrl)
           .then((b) => db.saveItemToHistory(HistoryItemsCompanion.insert(
-                postId: postInfo["id"],
+                postId: postInfo.id,
                 username: username,
                 coverImgBytes: Value(b),
                 imgUrls: urls.join(","),
@@ -128,7 +109,7 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final api = context.watch<Api>();
-    var me = api.cache.userInfo[api.username];
+    var me = api.cache.profiles[api.username];
     if (me == null) {
       api.getUserInfo(api.username);
 
@@ -179,7 +160,7 @@ class MyDrawer extends StatelessWidget {
     required this.user,
   }) : super(key: key);
 
-  final Map<String, dynamic> user;
+  final Profile user;
 
   @override
   Widget build(BuildContext context) {
@@ -199,8 +180,8 @@ class MyDrawer extends StatelessWidget {
               children: [
                 CircleAvatar(
                   backgroundImage: CachedNetworkImageProvider(
-                    user["profile_pic_url"],
-                    cacheKey: getCacheKey(user["profile_pic_url"]),
+                    user.profilePicUrl,
+                    cacheKey: getCacheKey(user.profilePicUrl),
                   ),
                   backgroundColor: theme.backgroundColor,
                   radius: 35,
@@ -213,7 +194,7 @@ class MyDrawer extends StatelessWidget {
                       return ErrorDisplay(message: "${snapshot.error}");
                     } else if (snapshot.hasData) {
                       return DropdownButton<String>(
-                        value: user["username"],
+                        value: user.username,
                         iconEnabledColor: theme.colorScheme.onPrimary,
                         selectedItemBuilder: (context) {
                           return (snapshot.data as List<String>)
@@ -323,7 +304,7 @@ class MyDrawer extends StatelessWidget {
                   duration: const Duration(days: 365),
                 ),
               );
-              await api.logout(user["username"]);
+              await api.logout(user.username);
               snackbarController.close();
               // ignore: use_build_context_synchronously
               Navigator.pop(context);

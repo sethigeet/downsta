@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/api.dart';
 import 'package:downsta/widgets/widgets.dart';
 
@@ -15,6 +16,13 @@ class Following extends StatefulWidget {
 class _FollowingState extends State<Following> {
   final _scrollController = ScrollController();
   String? endCursor;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _scrollController.addListener(_scrollListener);
+  }
 
   @override
   void dispose() {
@@ -32,12 +40,12 @@ class _FollowingState extends State<Following> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.get(
-        queryHash: ApiQueryHashes.following,
-        params: {"id": await api.getUserId(api.username), "after": endCursor},
-        resExtractor: (res) => res["user"]["edge_follow"],
-        cacheExtractor: (cache) => cache.following!,
-      );
+      await api.get<Profile>(
+          queryHash: ApiQueryHashes.following,
+          params: {"id": await api.getUserId(api.username), "after": endCursor},
+          resExtractor: (res) => res["user"]["edge_follow"],
+          cacheExtractor: (cache) => cache.following!,
+          nodeConverter: (node) => Profile(node));
     }
   }
 
@@ -45,13 +53,15 @@ class _FollowingState extends State<Following> {
   Widget build(BuildContext context) {
     final api = context.watch<Api>();
     if (api.cache.following == null) {
-      api.getUserId(api.username).then((userId) => api.get(
+      api.getUserId(api.username).then((userId) => api.get<Profile>(
             queryHash: ApiQueryHashes.following,
             params: {"id": userId},
             resExtractor: (res) => res["user"]["edge_follow"],
             cacheExtractor: (cache) => cache.following,
+            nodeConverter: (node) => Profile(node),
             initial: true,
-            cacheInitializer: (cache) => cache.following = {"edges": []},
+            cacheInitializer: (cache) =>
+                cache.following = PaginatedResponse<Profile>.empty(),
           ));
 
       return Scaffold(
@@ -62,14 +72,9 @@ class _FollowingState extends State<Following> {
       );
     }
 
-    List<dynamic> users = api.cache.following!["edges"] ?? [];
-    var pageInfo = api.cache.following!["page_info"];
-    var hasMorePosts = pageInfo["has_next_page"];
-    if (hasMorePosts) {
-      endCursor = pageInfo["end_cursor"];
-    } else {
-      endCursor = null;
-    }
+    final users = api.cache.following!.edges;
+    final hasMorePosts = api.cache.following!.hasMoreEdges;
+    endCursor = api.cache.following!.endCursor;
 
     return ListView.builder(
         controller: _scrollController,
@@ -81,11 +86,11 @@ class _FollowingState extends State<Following> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          var user = users[index]["node"];
+          var user = users[index];
           return UserCard(
-              fullName: user["full_name"],
-              username: user["username"],
-              profilePicUrl: user["profile_pic_url"]);
+              fullName: user.fullName,
+              username: user.username,
+              profilePicUrl: user.profilePicUrl);
         });
   }
 }

@@ -1,5 +1,8 @@
-build:
+generate:
 	flutter packages pub run build_runner build
+
+generate-icons:
+	flutter pub run flutter_launcher_icons:main
 
 build-android:
 	flutter build apk
@@ -7,7 +10,4 @@ build-android:
 build-linux:
 	flutter build linux
 
-generate-icons:
-	flutter pub run flutter_launcher_icons:main
-
-.PHONY: build build-android build-android generate-icons
+.PHONY: generate generate-icons build-android build-linux

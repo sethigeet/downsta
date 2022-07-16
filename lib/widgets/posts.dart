@@ -3,6 +3,8 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import 'package:drift/drift.dart' show Value;
+
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
@@ -46,15 +48,15 @@ class _PostsState extends State<Posts> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.get(
+      await api.get<Post>(
         queryHash: ApiQueryHashes.posts,
         params: {
           "id": await api.getUserId(widget.username),
           "after": endCursor
         },
         resExtractor: (res) => res["user"]["edge_owner_to_timeline_media"],
-        cacheExtractor: (cache) =>
-            cache.userInfo[widget.username]["edge_owner_to_timeline_media"],
+        cacheExtractor: (cache) => cache.profiles[widget.username]?.posts,
+        nodeConverter: (node) => Post(node),
       );
     }
   }
@@ -66,14 +68,14 @@ class _PostsState extends State<Posts> {
     final downloader = Provider.of<Downloader>(context, listen: false);
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
-    final userInfo = api.cache.userInfo[widget.username];
+    final userInfo = api.cache.profiles[widget.username];
     if (userInfo == null) {
       // it is already being requested by the `parent` so no need to request again!
 
       return Container();
     }
 
-    var posts = userInfo["edge_owner_to_timeline_media"]["edges"];
+    var posts = userInfo.posts.edges;
 
     if (posts.isEmpty) {
       return const NoContent(
@@ -82,13 +84,8 @@ class _PostsState extends State<Posts> {
       );
     }
 
-    var pageInfo = userInfo["edge_owner_to_timeline_media"]["page_info"];
-    var hasMorePosts = pageInfo["has_next_page"];
-    if (hasMorePosts) {
-      endCursor = pageInfo["end_cursor"];
-    } else {
-      endCursor = null;
-    }
+    var hasMorePosts = userInfo.posts.hasMoreEdges;
+    endCursor = userInfo.posts.endCursor;
 
     return Stack(
       children: [
@@ -107,11 +104,11 @@ class _PostsState extends State<Posts> {
                 );
               }
 
-              final post = posts[index]["node"];
-              final imageUrl = post["display_url"];
+              final post = posts[index];
+              final imageUrl = post.displayUrl;
               final toBeDownloaded = toDownload.contains(index);
               return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(post["id"]),
+                  future: db.isPostDownloaded(post.id),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -119,7 +116,7 @@ class _PostsState extends State<Posts> {
 
                     final bool alreadyDownloaded = snap.data!;
                     return Hero(
-                      tag: "post-${post["id"]}",
+                      tag: "post-${post.id}",
                       child: GestureDetector(
                         onTap: () {
                           if (selectionStarted) {
@@ -221,21 +218,13 @@ class _PostsState extends State<Posts> {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
-                          final post = posts[idx]["node"];
-                          List<String> images = [];
-                          if (post["edge_sidecar_to_children"] != null) {
-                            images.addAll(List<String>.from(
-                                post["edge_sidecar_to_children"]["edges"].map(
-                                    (post) => post["node"]["display_url"])));
-                          } else {
-                            images.add(post["display_url"]);
-                          }
-
+                          final post = posts[idx];
+                          final images = post.urls;
                           urls.addAll(images);
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: post["id"],
-                            coverImgBytes: Value(await downloader
-                                .getImgBytes(post["display_url"])),
+                            postId: post.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(post.displayUrl)),
                             imgUrls: images.join(","),
                             username: widget.username,
                           ));

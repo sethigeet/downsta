@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
@@ -46,7 +47,7 @@ class _VideosState extends State<Videos> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.get(
+      await api.get<Post>(
         queryHash: ApiQueryHashes.videos,
         params: {
           "id": await api.getUserId(widget.username),
@@ -54,6 +55,7 @@ class _VideosState extends State<Videos> {
         },
         resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
         cacheExtractor: (cache) => cache.videos[widget.username],
+        nodeConverter: (node) => Post(node),
         referer: "https://www.instagram.com/${widget.username}/channel/",
       );
     }
@@ -68,21 +70,22 @@ class _VideosState extends State<Videos> {
     final api = context.watch<Api>();
     final userVideos = api.cache.videos[widget.username];
     if (userVideos == null) {
-      api.getUserId(widget.username).then((userId) => api.get(
+      api.getUserId(widget.username).then((userId) => api.get<Post>(
             queryHash: ApiQueryHashes.videos,
             params: {"id": userId},
             resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
             cacheExtractor: (cache) => cache.videos[widget.username],
+            nodeConverter: (node) => Post(node),
             referer: "https://www.instagram.com/${widget.username}/channel/",
             initial: true,
             cacheInitializer: (cache) =>
-                cache.videos[widget.username] = {"edges": [], "page_info": {}},
+                cache.videos[widget.username] = PaginatedResponse<Post>.empty(),
           ));
 
       return const Center(child: CircularProgressIndicator());
     }
 
-    var videos = userVideos["edges"];
+    var videos = userVideos.edges;
 
     if (videos.isEmpty) {
       return const NoContent(
@@ -91,13 +94,8 @@ class _VideosState extends State<Videos> {
       );
     }
 
-    var pageInfo = userVideos["page_info"];
-    var hasMoreVideos = pageInfo["has_next_page"];
-    if (hasMoreVideos) {
-      endCursor = pageInfo["end_cursor"];
-    } else {
-      endCursor = null;
-    }
+    var hasMoreVideos = userVideos.hasMoreEdges;
+    endCursor = userVideos.endCursor;
 
     return Stack(
       children: [
@@ -116,11 +114,11 @@ class _VideosState extends State<Videos> {
                 );
               }
 
-              final video = videos[index]["node"];
-              final imageUrl = video["display_url"];
+              final video = videos[index];
+              final imageUrl = video.displayUrl;
               final toBeDownloaded = toDownload.contains(index);
               return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(video["id"]),
+                  future: db.isPostDownloaded(video.id),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -128,7 +126,7 @@ class _VideosState extends State<Videos> {
 
                     final bool alreadyDownloaded = snap.data!;
                     return Hero(
-                      tag: "video-${video["id"]}",
+                      tag: "video-${video.id}",
                       child: GestureDetector(
                         onTap: () {
                           if (selectionStarted) {
@@ -231,19 +229,22 @@ class _VideosState extends State<Videos> {
                         List<String> urls = [];
 
                         final videoIds =
-                            toDownload.map((idx) => videos[idx]["node"]["id"]);
+                            toDownload.map((idx) => videos[idx].id);
                         await Future.wait(
                             videoIds.map((id) => api.getVideoInfo(id)));
                         for (var id in videoIds) {
                           final video = api.cache.postsInfo[id];
-                          final url = video["video_versions"].first["url"];
+                          if (video == null) {
+                            continue;
+                          }
+
+                          final url = video.urls.first;
                           urls.add(url);
 
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: video["id"].split("_").first,
-                            coverImgBytes: Value(await downloader.getImgBytes(
-                                video["image_versions2"]["candidates"]
-                                    .first["url"])),
+                            postId: video.id.split("_").first,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(video.displayUrl)),
                             imgUrls: url,
                             username: widget.username,
                           ));

@@ -67,7 +67,7 @@ class _ReelsState extends State<Reels> {
         child: CircularProgressIndicator(),
       );
     }
-    List<dynamic> items = reels["items"];
+    final items = reels.edges;
 
     if (items.isEmpty) {
       return const NoContent(
@@ -76,37 +76,31 @@ class _ReelsState extends State<Reels> {
       );
     }
 
-    var pagingInfo = reels["paging_info"];
-    var moreAvailable = pagingInfo["more_available"];
-    if (moreAvailable) {
-      endCursor = pagingInfo["max_id"];
-    } else {
-      endCursor = null;
-    }
+    var hasMoreReels = reels.hasMoreEdges;
+    endCursor = reels.endCursor;
 
     return Stack(
       children: [
         GridView.builder(
-            itemCount: moreAvailable ? items.length + 1 : items.length,
+            itemCount: hasMoreReels ? items.length + 1 : items.length,
             controller: _scrollController,
             gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
               crossAxisCount: 3,
               childAspectRatio: 9 / 16,
             ),
             itemBuilder: (context, index) {
-              if (moreAvailable && index == items.length) {
+              if (hasMoreReels && index == items.length) {
                 return const Padding(
                   padding: EdgeInsets.symmetric(vertical: 32),
                   child: Center(child: CircularProgressIndicator()),
                 );
               }
 
-              final reel = items[index]["media"];
-              final imageUrl =
-                  reel["image_versions2"]["candidates"].last["url"];
+              final reel = items[index];
+              final imageUrl = reel.displayUrl;
               final toBeDownloaded = toDownload.contains(index);
               return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(reel["id"]),
+                  future: db.isPostDownloaded(reel.id),
                   builder: (context, snap) {
                     if (!snap.hasData) {
                       return const Center(child: CircularProgressIndicator());
@@ -114,7 +108,7 @@ class _ReelsState extends State<Reels> {
 
                     final bool alreadyDownloaded = snap.data!;
                     return Hero(
-                      tag: "reel-${reel["id"]}",
+                      tag: "reel-${reel.id}",
                       child: GestureDetector(
                         onTap: () {
                           if (selectionStarted) {
@@ -217,14 +211,13 @@ class _ReelsState extends State<Reels> {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
-                          final reel = items[idx]["media"];
-                          final videoUrl = reel["video_versions"].first["url"];
+                          final reel = items[idx];
+                          final videoUrl = reel.urls.first;
                           urls.add(videoUrl);
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: reel["id"],
-                            coverImgBytes: Value(await downloader.getImgBytes(
-                                reel["image_versions2"]["candidates"]
-                                    .last["url"])),
+                            postId: reel.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(reel.displayUrl)),
                             imgUrls: videoUrl,
                             username: widget.username,
                           ));

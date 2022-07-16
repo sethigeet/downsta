@@ -5,6 +5,7 @@ import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
@@ -30,7 +31,7 @@ class Stories extends StatefulWidget {
 
   final String username;
   final bool showHighlights;
-  final dynamic stories;
+  final List<Story>? stories;
 
   @override
   State<Stories> createState() => _StoriesState();
@@ -62,9 +63,7 @@ class _StoriesState extends State<Stories> {
       );
     }
 
-    List<dynamic> items = stories.isEmpty ? [] : stories["items"];
-
-    if (items.isEmpty && (widget.showHighlights && highlights.isEmpty)) {
+    if (stories.isEmpty && (widget.showHighlights && highlights.isEmpty)) {
       return const NoContent(
         message: "This user has no stories!",
         icon: Icons.list_rounded,
@@ -122,13 +121,13 @@ class _StoriesState extends State<Stories> {
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                   crossAxisCount: 3, childAspectRatio: 9 / 16),
               delegate: SliverChildBuilderDelegate(
-                childCount: items.length,
+                childCount: stories.length,
                 (context, index) {
-                  final story = items[index];
-                  final imageUrl = story["display_url"];
+                  final story = stories[index];
+                  final imageUrl = story.displayUrl;
                   final toBeDownloaded = toDownload.contains(index);
                   return FutureBuilder<bool>(
-                      future: db.isPostDownloaded(story["id"]),
+                      future: db.isPostDownloaded(story.id),
                       builder: (context, snap) {
                         if (!snap.hasData) {
                           return const Center(
@@ -137,7 +136,7 @@ class _StoriesState extends State<Stories> {
 
                         final bool alreadyDownloaded = snap.data!;
                         return Hero(
-                          tag: "story-${story["id"]}",
+                          tag: "story-${story.id}",
                           child: GestureDetector(
                             onTap: () {
                               if (selectionStarted) {
@@ -245,16 +244,13 @@ class _StoriesState extends State<Stories> {
                         List<HistoryItemsCompanion> histItems = [];
                         List<String> urls = [];
                         for (var idx in toDownload) {
-                          final story = items[idx];
-                          final isVideo = story["is_video"];
-                          String storyUrl = isVideo
-                              ? story["video_resources"].first["src"]
-                              : story["display_resources"].last["src"];
+                          final story = stories[idx];
+                          String storyUrl = story.urls.first;
                           urls.add(storyUrl);
                           histItems.add(HistoryItemsCompanion.insert(
-                            postId: story["id"],
-                            coverImgBytes: Value(await downloader
-                                .getImgBytes(story["display_url"])),
+                            postId: story.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(story.displayUrl)),
                             imgUrls: storyUrl,
                             username: widget.username,
                           ));
