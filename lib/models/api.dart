@@ -68,6 +68,15 @@ class Post {
 
     return [displayUrl];
   }
+
+  List<String> get displayUrls {
+    if (_node["edge_sidecar_to_children"] != null) {
+      return List<String>.from(_node["edge_sidecar_to_children"]["edges"]
+          .map((img) => img["node"]["display_url"]));
+    }
+
+    return [displayUrl];
+  }
 }
 
 class Story extends Post {
@@ -79,6 +88,9 @@ class Story extends Post {
             ? _node["video_resources"].first["src"]
             : _node["display_resources"].last["src"]
       ];
+
+  @override
+  List<String> get displayUrls => [displayUrl];
 }
 
 class Video extends Post {
@@ -89,6 +101,9 @@ class Video extends Post {
 
   @override
   List<String> get urls => [_node["video_versions"].first["url"]];
+
+  @override
+  List<String> get displayUrls => [displayUrl];
 }
 
 class Reel extends Video {

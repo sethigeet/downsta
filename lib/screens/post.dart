@@ -5,17 +5,22 @@ import 'package:flutter/gestures.dart';
 import 'package:flutter/services.dart';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:chewie/chewie.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:photo_view/photo_view.dart';
 import 'package:photo_view/photo_view_gallery.dart';
 import 'package:smooth_page_indicator/smooth_page_indicator.dart';
 import 'package:provider/provider.dart';
+import 'package:video_player/video_player.dart';
 
+import 'package:downsta/globals.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class PostScreenArguments {
-  dynamic post;
+  Post post;
   String username;
 
   PostScreenArguments({
@@ -39,6 +44,9 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
   final _pageController = PageController();
   final _photoController = PhotoViewController();
 
+  VideoPlayerController? _videoController;
+  ChewieController? _chewieController;
+
   int activeIndex = 0;
   bool showOverlays = true;
   double _currentOpacity = 1;
@@ -46,13 +54,33 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
   @override
   void dispose() {
+    _videoController?.dispose();
+    _chewieController?.dispose();
+
     _keyboardScrollFocusNode.dispose();
+    _pageController.dispose();
+    _photoController.dispose();
 
     // reset the display state
     SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
         overlays: SystemUiOverlay.values);
 
     super.dispose();
+  }
+
+  void initializePlayer(String url, String coverImgUrl) async {
+    _videoController = VideoPlayerController.network(url);
+    await _videoController!.initialize();
+    _chewieController = ChewieController(
+      videoPlayerController: _videoController!,
+      errorBuilder: (context, msg) => ErrorDisplay(message: msg),
+      placeholder: CachedImage(imageUrl: coverImgUrl),
+      autoPlay: true,
+      looping: false,
+      allowMuting: true,
+      zoomAndPan: true,
+    );
+    setState(() {});
   }
 
   @override
@@ -67,13 +95,8 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
     final post = args.post;
     final username = args.username;
 
-    List<String> images = [];
-    if (post["edge_sidecar_to_children"] != null) {
-      images.addAll(List<String>.from(post["edge_sidecar_to_children"]["edges"]
-          .map((post) => post["node"]["display_url"])));
-    } else {
-      images.add(post["display_url"]);
-    }
+    final images = post.urls;
+    final coverImages = post.displayUrls;
 
     return Scaffold(
       appBar: PreferredSize(
@@ -105,6 +128,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                     ),
                   ),
                   onLongPress: () async {
+                    final currUrl = images[(_pageController.page ?? 0).floor()];
                     final toDownload = await showModalBottomSheet<List<String>>(
                         context: context,
                         builder: (context) {
@@ -112,10 +136,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                             height: 100,
                             child: Column(children: [
                               ListTile(
-                                onTap: () => Navigator.pop(context, [
-                                  images[(_pageController.page ?? 0).floor()]
-                                ]),
-                                title: const Text("Download current image"),
+                                onTap: () => Navigator.pop(context, [currUrl]),
+                                title: currUrl.contains(".mp4")
+                                    ? const Text("Download current video")
+                                    : const Text("Download current image"),
                                 leading: const Icon(Icons.image),
                               ),
                               ListTile(
@@ -129,9 +153,9 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                     if (toDownload != null) {
                       if (toDownload.length > 1) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: post["id"],
-                          coverImgBytes: Value(await downloader
-                              .getImgBytes(post["display_url"])),
+                          postId: post.id,
+                          coverImgBytes: Value(
+                              await downloader.getImgBytes(post.displayUrl)),
                           imgUrls: images.join(","),
                           username: username,
                         ));
@@ -142,9 +166,9 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                   onTap: () async {
                     downloader.download(images, username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: post["id"],
-                      coverImgBytes: Value(
-                          await downloader.getImgBytes(post["display_url"])),
+                      postId: post.id,
+                      coverImgBytes:
+                          Value(await downloader.getImgBytes(post.displayUrl)),
                       imgUrls: images.join(","),
                       username: username,
                     ));
@@ -242,25 +266,46 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                   }),
                   backgroundDecoration:
                       BoxDecoration(color: theme.backgroundColor),
-                  builder: (context, index) => PhotoViewGalleryPageOptions(
-                    controller: _photoController,
-                    minScale: PhotoViewComputedScale.contained,
-                    maxScale: PhotoViewComputedScale.covered * 4,
-                    imageProvider: CachedNetworkImageProvider(
-                      images[index],
-                      cacheKey: getCacheKey(images[index]),
-                    ),
-                    initialScale: PhotoViewComputedScale.contained,
-                    errorBuilder: (context, error, _) => const Center(
-                      child: SizedBox(
-                        width: 25,
-                        height: 25,
-                        child: Icon(Icons.error),
+                  builder: (context, index) {
+                    final url = images[index];
+                    final coverImgUrl = coverImages[index];
+                    if (url.contains(".mp4")) {
+                      if (kIsMobile) {
+                        initializePlayer(url, coverImgUrl);
+                      }
+                      return PhotoViewGalleryPageOptions.customChild(
+                        child: _chewieController == null
+                            ? buildLoadingWidget(coverImgUrl)
+                            : !_chewieController!
+                                    .videoPlayerController.value.isInitialized
+                                ? buildLoadingWidget(coverImgUrl)
+                                : Chewie(controller: _chewieController!),
+                        controller: _photoController,
+                        minScale: PhotoViewComputedScale.contained,
+                        maxScale: PhotoViewComputedScale.covered * 4,
+                        heroAttributes:
+                            PhotoViewHeroAttributes(tag: "post-${post.id}"),
+                      );
+                    }
+
+                    return PhotoViewGalleryPageOptions(
+                      controller: _photoController,
+                      minScale: PhotoViewComputedScale.contained,
+                      maxScale: PhotoViewComputedScale.covered * 4,
+                      imageProvider: CachedNetworkImageProvider(url,
+                          cacheKey: getCacheKey(url)),
+                      initialScale: PhotoViewComputedScale.contained,
+                      errorBuilder: (context, error, _) => const Center(
+                        child: SizedBox(
+                          width: 25,
+                          height: 25,
+                          child: Icon(Icons.error),
+                        ),
                       ),
-                    ),
-                    heroAttributes:
-                        PhotoViewHeroAttributes(tag: "post-${post["id"]}"),
-                  ),
+                      heroAttributes:
+                          PhotoViewHeroAttributes(tag: "post-${post.id}"),
+                    );
+                  },
                   loadingBuilder: (context, event) => Center(
                     child: SizedBox(
                         width: 25,
@@ -306,6 +351,16 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
         duration: _animationDuration,
         curve: Curves.easeInOut,
       ),
+    );
+  }
+
+  Widget buildLoadingWidget(String coverImgUrl) {
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        CachedImage(imageUrl: coverImgUrl),
+        const CircularProgressIndicator(),
+      ],
     );
   }
 }

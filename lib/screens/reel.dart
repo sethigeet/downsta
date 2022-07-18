@@ -1,15 +1,22 @@
+import 'dart:math';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
+import 'package:downsta/globals.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class ReelScreenArguments {
-  dynamic reel;
+  Reel reel;
   String username;
 
   ReelScreenArguments({
@@ -30,10 +37,13 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
   final _animationDuration = const Duration(milliseconds: 300);
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
+  final _photoController = PhotoViewController();
+  final _keyboardScrollFocusNode = FocusNode();
 
   int activeIndex = 0;
   bool showOverlays = true;
   double _currentOpacity = 1;
+  bool _isCtrlPressed = false;
 
   @override
   void dispose() {
@@ -44,14 +54,19 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
     _videoController?.dispose();
     _chewieController?.dispose();
 
+    _photoController.dispose();
+    _keyboardScrollFocusNode.dispose();
+
     super.dispose();
   }
 
-  void initializePlayer(String url) async {
+  void initializePlayer(String url, String coverImgUrl) async {
     _videoController = VideoPlayerController.network(url);
     await _videoController!.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
+      errorBuilder: (context, msg) => ErrorDisplay(message: msg),
+      placeholder: CachedImage(imageUrl: coverImgUrl),
       autoPlay: true,
       looping: false,
       allowMuting: true,
@@ -70,10 +85,12 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
     final args =
         ModalRoute.of(context)!.settings.arguments as ReelScreenArguments;
     final reel = args.reel;
-    String imageUrl = reel["image_versions2"]["candidates"].first["url"];
-    String videoUrl = reel["video_versions"].first["url"];
+    String videoUrl = reel.urls.first;
+    String coverImgUrl = reel.displayUrl;
 
-    initializePlayer(videoUrl);
+    if (kIsMobile) {
+      initializePlayer(videoUrl, coverImgUrl);
+    }
 
     return Scaffold(
       appBar: PreferredSize(
@@ -109,7 +126,7 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                         context: context,
                         builder: (context) {
                           return SizedBox(
-                            height: 100,
+                            height: 150,
                             child: Column(children: [
                               ListTile(
                                 onTap: () => Navigator.pop(context, [videoUrl]),
@@ -118,12 +135,12 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                               ),
                               ListTile(
                                   onTap: () =>
-                                      Navigator.pop(context, [imageUrl]),
+                                      Navigator.pop(context, [coverImgUrl]),
                                   title: const Text("Download cover image"),
                                   leading: const Icon(Icons.collections)),
                               ListTile(
                                   onTap: () => Navigator.pop(
-                                      context, [imageUrl, videoUrl]),
+                                      context, [coverImgUrl, videoUrl]),
                                   title: const Text("Download both"),
                                   leading: const Icon(Icons.collections)),
                             ]),
@@ -133,9 +150,9 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                     if (toDownload != null) {
                       if (toDownload.contains(videoUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: reel["id"],
+                          postId: reel.id,
                           coverImgBytes:
-                              Value(await downloader.getImgBytes(imageUrl)),
+                              Value(await downloader.getImgBytes(coverImgUrl)),
                           imgUrls: videoUrl,
                           username: args.username,
                         ));
@@ -146,9 +163,9 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                   onTap: () async {
                     downloader.download([videoUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: reel["id"],
+                      postId: reel.id,
                       coverImgBytes:
-                          Value(await downloader.getImgBytes(imageUrl)),
+                          Value(await downloader.getImgBytes(coverImgUrl)),
                       imgUrls: videoUrl,
                       username: args.username,
                     ));
@@ -168,34 +185,64 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                 overlays: SystemUiOverlay.values);
           }
         },
-        child: Column(
-          children: [
-            Expanded(
-              child: Hero(
-                tag: "reel-${reel["id"]}",
-                child: Center(
-                  child: _chewieController == null
-                      ? buildLoadingWidget()
-                      : !_chewieController!
-                              .videoPlayerController.value.isInitialized
-                          ? buildLoadingWidget()
-                          : Chewie(controller: _chewieController!),
-                ),
-              ),
+        child: KeyboardListener(
+          focusNode: _keyboardScrollFocusNode,
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent) {
+              setState(() => _isCtrlPressed =
+                  event.logicalKey == LogicalKeyboardKey.controlLeft);
+            } else if (event is KeyUpEvent) {
+              setState(() => _isCtrlPressed =
+                  event.logicalKey != LogicalKeyboardKey.controlLeft);
+            }
+          },
+          child: Listener(
+            onPointerSignal: (event) {
+              // Zoom in and out
+              if (_isCtrlPressed) {
+                if (event is PointerScrollEvent &&
+                    event.kind == PointerDeviceKind.mouse) {
+                  // for some reason, the delta is the opposite of what is obvious
+                  final double delta = (event.scrollDelta.dy * -1) / 1000;
+                  double newScale =
+                      max(0, min((_photoController.scale ?? 1) + delta, 4));
+                  _photoController.setScaleInvisibly(newScale);
+                }
+
+                return;
+              }
+            },
+            onPointerHover: (event) {
+              if (!_keyboardScrollFocusNode.hasFocus &&
+                  event.kind == PointerDeviceKind.mouse) {
+                // Request focus in order to be able to use keyboard keys
+                FocusScope.of(context).requestFocus(_keyboardScrollFocusNode);
+              }
+            },
+            child: PhotoView.customChild(
+              controller: _photoController,
+              heroAttributes: PhotoViewHeroAttributes(tag: "reel-${reel.id}"),
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 4,
+              child: _chewieController == null
+                  ? buildLoadingWidget(coverImgUrl)
+                  : !_chewieController!
+                          .videoPlayerController.value.isInitialized
+                      ? buildLoadingWidget(coverImgUrl)
+                      : Chewie(controller: _chewieController!),
             ),
-          ],
+          ),
         ),
       ),
     );
   }
 
-  Widget buildLoadingWidget() {
-    return Column(
-      mainAxisAlignment: MainAxisAlignment.center,
-      children: const [
-        CircularProgressIndicator(),
-        SizedBox(height: 20),
-        Text('Loading'),
+  Widget buildLoadingWidget(String coverImgUrl) {
+    return Stack(
+      alignment: AlignmentDirectional.center,
+      children: [
+        CachedImage(imageUrl: coverImgUrl),
+        const CircularProgressIndicator(),
       ],
     );
   }

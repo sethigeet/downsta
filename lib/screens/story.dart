@@ -1,16 +1,22 @@
+import 'dart:math';
+
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
 import 'package:drift/drift.dart' show Value;
+import 'package:photo_view/photo_view.dart';
 import 'package:provider/provider.dart';
 import 'package:video_player/video_player.dart';
 import 'package:chewie/chewie.dart';
 
+import 'package:downsta/globals.dart';
 import 'package:downsta/services/services.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/widgets/widgets.dart';
 
 class StoryScreenArguments {
-  dynamic story;
+  Story story;
   String username;
 
   StoryScreenArguments({
@@ -32,10 +38,13 @@ class _StoryScreenState extends State<StoryScreen>
   final _animationDuration = const Duration(milliseconds: 300);
   VideoPlayerController? _videoController;
   ChewieController? _chewieController;
+  final _photoController = PhotoViewController();
+  final _keyboardScrollFocusNode = FocusNode();
 
   int activeIndex = 0;
   bool showOverlays = true;
   double _currentOpacity = 1;
+  bool _isCtrlPressed = false;
 
   @override
   void dispose() {
@@ -45,6 +54,9 @@ class _StoryScreenState extends State<StoryScreen>
 
     _videoController?.dispose();
     _chewieController?.dispose();
+
+    _photoController.dispose();
+    _keyboardScrollFocusNode.dispose();
 
     super.dispose();
   }
@@ -74,15 +86,12 @@ class _StoryScreenState extends State<StoryScreen>
     final args =
         ModalRoute.of(context)!.settings.arguments as StoryScreenArguments;
     final story = args.story;
-    final isVideo = story["is_video"];
+    final isVideo = story.isVideo;
 
-    String coverImgUrl = story["display_url"];
+    String coverImgUrl = story.displayUrl;
+    String storyUrl = story.urls.first;
 
-    String storyUrl = isVideo
-        ? story["video_resources"].first["src"]
-        : story["display_resources"].last["src"];
-
-    if (isVideo) {
+    if (isVideo && kIsMobile) {
       initializePlayer(storyUrl, coverImgUrl);
     }
 
@@ -120,7 +129,7 @@ class _StoryScreenState extends State<StoryScreen>
                         context: context,
                         builder: (context) {
                           return SizedBox(
-                            height: 100,
+                            height: isVideo ? 150 : 50,
                             child: Column(children: [
                               ListTile(
                                 onTap: () => Navigator.pop(context, [storyUrl]),
@@ -146,7 +155,7 @@ class _StoryScreenState extends State<StoryScreen>
                     if (toDownload != null) {
                       if (toDownload.contains(storyUrl)) {
                         db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: story["id"],
+                          postId: story.id,
                           coverImgBytes:
                               Value(await downloader.getImgBytes(coverImgUrl)),
                           imgUrls: storyUrl,
@@ -159,7 +168,7 @@ class _StoryScreenState extends State<StoryScreen>
                   onTap: () async {
                     downloader.download([storyUrl], args.username);
                     db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: story["id"],
+                      postId: story.id,
                       coverImgBytes:
                           Value(await downloader.getImgBytes(coverImgUrl)),
                       imgUrls: storyUrl,
@@ -181,24 +190,55 @@ class _StoryScreenState extends State<StoryScreen>
                 overlays: SystemUiOverlay.values);
           }
         },
-        child: Column(
-          children: [
-            Expanded(
-              child: Hero(
-                tag: "story-${story["id"]}",
-                child: Center(
-                  child: isVideo
-                      ? _chewieController == null
+        child: KeyboardListener(
+          focusNode: _keyboardScrollFocusNode,
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent) {
+              setState(() => _isCtrlPressed =
+                  event.logicalKey == LogicalKeyboardKey.controlLeft);
+            } else if (event is KeyUpEvent) {
+              setState(() => _isCtrlPressed =
+                  event.logicalKey != LogicalKeyboardKey.controlLeft);
+            }
+          },
+          child: Listener(
+            onPointerSignal: (event) {
+              // Zoom in and out
+              if (_isCtrlPressed) {
+                if (event is PointerScrollEvent &&
+                    event.kind == PointerDeviceKind.mouse) {
+                  // for some reason, the delta is the opposite of what is obvious
+                  final double delta = (event.scrollDelta.dy * -1) / 1000;
+                  double newScale =
+                      max(0, min((_photoController.scale ?? 1) + delta, 4));
+                  _photoController.setScaleInvisibly(newScale);
+                }
+
+                return;
+              }
+            },
+            onPointerHover: (event) {
+              if (!_keyboardScrollFocusNode.hasFocus &&
+                  event.kind == PointerDeviceKind.mouse) {
+                // Request focus in order to be able to use keyboard keys
+                FocusScope.of(context).requestFocus(_keyboardScrollFocusNode);
+              }
+            },
+            child: PhotoView.customChild(
+              controller: _photoController,
+              heroAttributes: PhotoViewHeroAttributes(tag: "story-${story.id}"),
+              minScale: PhotoViewComputedScale.contained,
+              maxScale: PhotoViewComputedScale.covered * 4,
+              child: isVideo
+                  ? _chewieController == null
+                      ? buildLoadingWidget(coverImgUrl)
+                      : !_chewieController!
+                              .videoPlayerController.value.isInitialized
                           ? buildLoadingWidget(coverImgUrl)
-                          : !_chewieController!
-                                  .videoPlayerController.value.isInitialized
-                              ? buildLoadingWidget(coverImgUrl)
-                              : Chewie(controller: _chewieController!)
-                      : CachedImage(imageUrl: storyUrl),
-                ),
-              ),
+                          : Chewie(controller: _chewieController!)
+                  : CachedImage(imageUrl: storyUrl),
             ),
-          ],
+          ),
         ),
       ),
     );
