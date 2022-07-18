@@ -17,6 +17,8 @@ const defaultHeaders = {
   "X-IG-APP-ID": "936619743392459",
 };
 
+const acceptedPostTypes = ["GraphImage", "GraphVideo", "GraphSidecar"];
+
 abstract class ApiUrls {
   static const csrfToken = "/accounts/login";
   static const login = "/accounts/login/ajax/";
@@ -51,6 +53,7 @@ abstract class ApiUserAgents {
 }
 
 abstract class ApiQueryHashes {
+  static const feed = "d6f4427fbe92d846298cf93df0b937d3";
   static const following = "58712303d941c6855d4e888c5f0cd22f";
   static const posts = "003056d32c2554def87228bc3fd9668a";
   static const stories = "303a4ae99711322310f25250d988f3b7";
@@ -61,6 +64,7 @@ abstract class ApiQueryHashes {
 }
 
 class Cache with DiagnosticableTreeMixin {
+  PaginatedResponse<Post>? feed;
   PaginatedResponse<Profile>? following;
   Map<String, Profile> profiles = {};
   Map<String, PaginatedResponse<Post>> videos = {};
@@ -72,6 +76,7 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, List<Story>> highlightItems = {};
 
   void resetCache() {
+    feed = null;
     following = null;
     profiles = {};
     videos = {};
@@ -87,6 +92,7 @@ class Cache with DiagnosticableTreeMixin {
   void debugFillProperties(DiagnosticPropertiesBuilder properties) {
     super.debugFillProperties(properties);
 
+    properties.add(StringProperty("feed", following.toString()));
     properties.add(StringProperty("following", following.toString()));
     properties.add(StringProperty("profiles", profiles.toString()));
     properties.add(StringProperty("videos", videos.toString()));
@@ -497,7 +503,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       required Map<String, dynamic> params,
       required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
       required PaginatedResponse<T>? Function(Cache) cacheExtractor,
-      required T Function(Map<String, dynamic>) nodeConverter,
+      required T? Function(Map<String, dynamic>) nodeConverter,
       bool initial = false,
       void Function(Cache)? cacheInitializer,
       bool force = false,
@@ -536,8 +542,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
           "cached data cannot be null if this is not the initial request");
     }
     oldData.updatePageInfo(newData["page_info"]);
-    oldData.addEdges(List<T>.from(
-        newData["edges"].map((edge) => nodeConverter(edge["node"]))));
+    oldData.addEdges(List<T>.from((newData["edges"] as List)
+        .map((edge) => nodeConverter(edge["node"]))
+        .where((node) => node != null)));
 
     notifyListeners();
 

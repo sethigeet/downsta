@@ -46,7 +46,7 @@ class DownloadedStatus extends StatelessWidget {
         width: 25,
         child: showCheck
             ? Icon(
-                Icons.check,
+                alreadyDownloaded ? Icons.check : Icons.download_done_rounded,
                 color: fgColor,
               )
             : null,

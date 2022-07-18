@@ -45,6 +45,7 @@ class Post {
   String get id => _node["id"];
 
   String get username => _node["owner"]["username"];
+  String get profilePicUrl => _node["owner"]["profile_pic_url"];
 
   String get displayUrl => _node["display_url"];
 

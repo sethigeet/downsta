@@ -148,7 +148,7 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: [
         const Following(),
-        const Center(child: Text("Feed!")),
+        const Feed(),
       ][index],
     );
   }
