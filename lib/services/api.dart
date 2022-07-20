@@ -23,7 +23,6 @@ abstract class ApiUrls {
   static const csrfToken = "/accounts/login";
   static const login = "/accounts/login/ajax/";
   static const loginCheck = "/accounts/login/";
-  // TODO: data={"user_id": <user-id>} desktop
   static const logout = "/accounts/logout/ajax/";
 
   static const userInfo = "/api/v1/users/web_profile_info/";

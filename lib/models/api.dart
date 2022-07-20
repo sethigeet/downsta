@@ -51,6 +51,11 @@ class Post {
 
   bool get isVideo => _node["is_video"];
 
+  Map<String, dynamic> get _dimensions => _node["dimensions"];
+  int get width => _dimensions["width"];
+  int get height => _dimensions["height"];
+  double get aspectRatio => height / width;
+
   List<String> get urls {
     if (isVideo) {
       return [_node["video_url"]];
