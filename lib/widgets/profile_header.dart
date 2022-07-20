@@ -74,6 +74,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
             "display_url": url,
             "id":
                 "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
+            "is_video": false,
           }),
           username: username,
         ));
