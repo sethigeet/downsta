@@ -69,7 +69,7 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, PaginatedResponse<Post>> videos = {};
   Map<String, Video> postsInfo = {};
   Map<String, PaginatedResponse<Reel>> reels = {};
-  Map<String, dynamic> search = {};
+  Map<String, List<Profile>> search = {};
   Map<String, List<Story>> stories = {};
   Map<String, List<Highlight>> highlights = {};
   Map<String, List<Story>> highlightItems = {};
@@ -397,29 +397,29 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return reels[username]!;
   }
 
-  Future<Map<String, dynamic>> getSearchRes(String query,
-      {bool force = false}) async {
+  Future<List<Profile>> getSearchRes(String query, {bool force = false}) async {
     var search = cache.search;
     if (!force && search[query] != null) {
-      return search[query];
+      return search[query]!;
     }
 
     Map<String, dynamic> res;
     if (query == "--recent-searches--") {
       res = await getJson(ApiUrls.recentSearches);
       res = {"users": res["recent"]};
-      search[query] = res;
     } else {
       res = await getJson(
         ApiUrls.search,
         queryParameters: {"query": query},
       );
-      search[query] = res;
     }
+    final users = List<Profile>.from(
+        (res["users"] ?? []).map((user) => Profile(user["user"])));
+    search[query] = users;
 
     notifyListeners();
 
-    return res;
+    return users;
   }
 
   Future<List<Story>> getStories(String username, {bool force = false}) async {

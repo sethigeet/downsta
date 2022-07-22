@@ -2,20 +2,21 @@ import 'dart:async';
 
 import 'package:flutter/material.dart';
 
-import 'package:downsta/widgets/widgets.dart';
+import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/helpers/helpers.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class SearchProfiles extends SearchDelegate {
-  late Completer<List<dynamic>> _completer;
+  late Completer<List<Profile>> _completer;
   late Debouncer<String> _debouncer;
   Api api;
 
   String prevVal = "";
-  List<dynamic> prevRes = [];
+  List<Profile> prevRes = [];
 
   SearchProfiles({required this.api}) {
-    _completer = Completer<List<dynamic>>();
+    _completer = Completer<List<Profile>>();
     _debouncer = Debouncer<String>(
         duration: const Duration(milliseconds: 500),
         cb: (value) async {
@@ -27,25 +28,17 @@ class SearchProfiles extends SearchDelegate {
             _completer.complete(prevRes);
 
             // reset the completer for the next future!
-            _completer = Completer<List<dynamic>>();
+            _completer = Completer<List<Profile>>();
+
             return;
           }
 
           final res = await api.getSearchRes(value);
-          if (res["users"] == null) {
-            _completer.complete([]);
-
-            // reset the completer for the next future!
-            _completer = Completer<List<dynamic>>();
-            return;
-          }
-
-          final users = res["users"];
-          prevRes = users;
-          _completer.complete(users);
+          prevRes = res;
+          _completer.complete(res);
 
           // reset the completer for the next future!
-          _completer = Completer<List<dynamic>>();
+          _completer = Completer<List<Profile>>();
         });
   }
 
@@ -83,7 +76,7 @@ class SearchProfiles extends SearchDelegate {
   Widget _build() {
     _debouncer.value = query;
 
-    return FutureBuilder<List<dynamic>>(
+    return FutureBuilder<List<Profile>>(
       future: _completer.future,
       builder: (context, snapshot) {
         if (snapshot.hasError) {
@@ -96,11 +89,11 @@ class SearchProfiles extends SearchDelegate {
                   parent: AlwaysScrollableScrollPhysics()),
               itemCount: items.length,
               itemBuilder: (context, index) {
-                var user = items[index]["user"];
+                var user = items[index];
                 return UserCard(
-                    fullName: user["full_name"],
-                    username: user["username"],
-                    profilePicUrl: user["profile_pic_url"]);
+                    fullName: user.fullName,
+                    username: user.username,
+                    profilePicUrl: user.profilePicUrl);
               });
         } else {
           return const Center(child: CircularProgressIndicator());
