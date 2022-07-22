@@ -3,7 +3,7 @@ description: An app to download posts, stories, reels and videos from instagram.
 
 publish_to: 'none'
 
-version: 1.0.0+1
+version: 1.0.1
 
 environment:
   sdk: ">=2.17.1 <3.0.0"
