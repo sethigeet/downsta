@@ -42,7 +42,7 @@ class Post {
   final Map<String, dynamic> _node;
   Post(this._node);
 
-  String get id => _node["id"];
+  String get id => _node["id"].split("_").first;
 
   String get username => _node["owner"]["username"];
   String get profilePicUrl => _node["owner"]["profile_pic_url"];
