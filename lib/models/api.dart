@@ -99,6 +99,20 @@ class Story extends Post {
   List<String> get displayUrls => [displayUrl];
 }
 
+class Highlight extends Post {
+  Highlight(super.node);
+
+  String get title => _node["title"];
+
+  @override
+  List<String> get urls => [_node["cover_media_cropped_thumbnail"]["url"]];
+
+  @override
+  String get displayUrl => urls.first;
+  @override
+  List<String> get displayUrls => urls;
+}
+
 class Video extends Post {
   Video(super.node);
 

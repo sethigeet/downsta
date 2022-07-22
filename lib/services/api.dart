@@ -71,7 +71,7 @@ class Cache with DiagnosticableTreeMixin {
   Map<String, PaginatedResponse<Reel>> reels = {};
   Map<String, dynamic> search = {};
   Map<String, List<Story>> stories = {};
-  Map<String, dynamic> highlights = {};
+  Map<String, List<Highlight>> highlights = {};
   Map<String, List<Story>> highlightItems = {};
 
   void resetCache() {
@@ -444,11 +444,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return data;
   }
 
-  Future<List<dynamic>> getHighlights(String username,
+  Future<List<Highlight>> getHighlights(String username,
       {bool force = false}) async {
     var highlights = cache.highlights;
     if (!force && highlights[username] != null) {
-      return highlights[username];
+      return highlights[username]!;
     }
 
     var res = await getGQLJson(
@@ -463,11 +463,13 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       },
     );
     final edges = res["data"]["user"]["edge_highlight_reels"]["edges"];
-    highlights[username] = edges;
+    final items =
+        List<Highlight>.from(edges.map((edge) => Highlight(edge["node"])));
+    highlights[username] = items;
 
     notifyListeners();
 
-    return edges;
+    return items;
   }
 
   Future<List<Story>> getHighlightItems(String highlightId,

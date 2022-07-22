@@ -49,10 +49,7 @@ class _StoriesState extends State<Stories> {
     final db = Provider.of<DB>(context, listen: false);
     final api = context.watch<Api>();
     final stories = widget.stories ?? api.cache.stories[widget.username];
-    dynamic highlights;
-    if (widget.showHighlights) {
-      highlights = api.cache.highlights[widget.username];
-    }
+    final highlights = api.cache.highlights[widget.username];
     if (stories == null || (widget.showHighlights && highlights == null)) {
       api.getStories(widget.username);
       if (widget.showHighlights) {
@@ -63,7 +60,7 @@ class _StoriesState extends State<Stories> {
       );
     }
 
-    if (stories.isEmpty && (widget.showHighlights && highlights.isEmpty)) {
+    if (stories.isEmpty && (widget.showHighlights && highlights!.isEmpty)) {
       return const NoContent(
         message: "This user has no stories!",
         icon: Icons.list_rounded,
@@ -85,10 +82,10 @@ class _StoriesState extends State<Stories> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 5, vertical: 5),
                         itemExtent: 75,
-                        itemCount: highlights.length,
+                        itemCount: highlights!.length,
                         scrollDirection: Axis.horizontal,
                         itemBuilder: (context, index) {
-                          final highlight = highlights[index]["node"];
+                          final highlight = highlights[index];
                           return GestureDetector(
                             onTap: () => Navigator.of(context)
                                 .pushNamed(HighlightItemsScreen.routeName,
@@ -102,10 +99,9 @@ class _StoriesState extends State<Stories> {
                                 CircleAvatar(
                                   radius: 30,
                                   backgroundImage: CachedNetworkImageProvider(
-                                      highlight["cover_media_cropped_thumbnail"]
-                                          ["url"]),
+                                      highlight.urls.first),
                                 ),
-                                Text(highlight["title"], maxLines: 1)
+                                Text(highlight.title, maxLines: 1)
                               ],
                             ),
                           );
