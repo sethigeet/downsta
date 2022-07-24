@@ -18,7 +18,7 @@ part 'db.g.dart';
 class DB extends _$DB {
   DB() : super(DB._openConnection());
 
-  final Map<String, bool> _isDownloadedCache = {};
+  final Map<String, bool> isDownloadedCache = {};
 
   @override
   int get schemaVersion => 2;
@@ -117,7 +117,7 @@ class DB extends _$DB {
   }
 
   Future<bool> isPostDownloaded(String postId) async {
-    var cached = _isDownloadedCache[postId];
+    var cached = isDownloadedCache[postId];
     if (cached != null) {
       return cached;
     }
@@ -126,7 +126,7 @@ class DB extends _$DB {
       ..where((item) => item.postId.equals(postId));
     var res = await query.getSingleOrNull();
     var isDownloaded = res != null;
-    _isDownloadedCache[postId] = isDownloaded;
+    isDownloadedCache[postId] = isDownloaded;
     return isDownloaded;
   }
 
@@ -135,13 +135,13 @@ class DB extends _$DB {
       batch.insertAll<HistoryItems, HistoryItem>(historyItems, items);
     });
     for (var item in items) {
-      _isDownloadedCache[item.postId.value] = true;
+      isDownloadedCache[item.postId.value] = true;
     }
   }
 
   Future<void> saveItemToHistory(HistoryItemsCompanion item) async {
     await into(historyItems).insert(item);
-    _isDownloadedCache[item.postId.value] = true;
+    isDownloadedCache[item.postId.value] = true;
   }
 
   Future<void> deleteItemFromHistory(int id) async {

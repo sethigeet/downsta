@@ -93,8 +93,9 @@ class _VideoScreenState extends State<VideoScreen>
       return const Center(child: CircularProgressIndicator());
     }
 
-    String coverImgUrl = video.displayUrl;
     String videoUrl = video.urls.first;
+    String coverImgUrl = video.displayUrl;
+    final alreadyDownloaded = db.isDownloadedCache[video.id] ?? false;
 
     if (kIsMobile) {
       initializePlayer(videoUrl, coverImgUrl);
@@ -122,13 +123,6 @@ class _VideoScreenState extends State<VideoScreen>
                 child: InkWell(
                   splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
                   onLongPress: () async {
                     final toDownload = await showModalBottomSheet<List<String>>(
                         context: context,
@@ -168,16 +162,27 @@ class _VideoScreenState extends State<VideoScreen>
                       downloader.download(toDownload, args.username);
                     }
                   },
-                  onTap: () async {
-                    downloader.download([videoUrl], args.username);
-                    db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: video.id,
-                      coverImgBytes:
-                          Value(await downloader.getImgBytes(coverImgUrl)),
-                      imgUrls: videoUrl,
-                      username: args.username,
-                    ));
-                  },
+                  onTap: alreadyDownloaded
+                      ? null
+                      : () async {
+                          downloader.download([videoUrl], args.username);
+                          db.saveItemToHistory(HistoryItemsCompanion.insert(
+                            postId: video.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(coverImgUrl)),
+                            imgUrls: videoUrl,
+                            username: args.username,
+                          ));
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      alreadyDownloaded
+                          ? Icons.download_done_rounded
+                          : Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
                 ),
               ),
             )

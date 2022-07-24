@@ -97,6 +97,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
     final images = post.urls;
     final coverImages = post.displayUrls;
+    final alreadyDownloaded = db.isDownloadedCache[post.id] ?? false;
 
     return Scaffold(
       appBar: PreferredSize(
@@ -120,13 +121,6 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                 child: InkWell(
                   splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
                   onLongPress: () async {
                     final currUrl = images[(_pageController.page ?? 0).floor()];
                     final toDownload = await showModalBottomSheet<List<String>>(
@@ -163,16 +157,27 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                       downloader.download(toDownload, username);
                     }
                   },
-                  onTap: () async {
-                    downloader.download(images, username);
-                    db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: post.id,
-                      coverImgBytes:
-                          Value(await downloader.getImgBytes(post.displayUrl)),
-                      imgUrls: images.join(","),
-                      username: username,
-                    ));
-                  },
+                  onTap: alreadyDownloaded
+                      ? null
+                      : () async {
+                          downloader.download(images, username);
+                          db.saveItemToHistory(HistoryItemsCompanion.insert(
+                            postId: post.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(post.displayUrl)),
+                            imgUrls: images.join(","),
+                            username: username,
+                          ));
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      alreadyDownloaded
+                          ? Icons.download_done_rounded
+                          : Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
                 ),
               ),
             )

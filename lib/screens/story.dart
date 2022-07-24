@@ -88,8 +88,9 @@ class _StoryScreenState extends State<StoryScreen>
     final story = args.story;
     final isVideo = story.isVideo;
 
-    String coverImgUrl = story.displayUrl;
     String storyUrl = story.urls.first;
+    String coverImgUrl = story.displayUrl;
+    final alreadyDownloaded = db.isDownloadedCache[story.id] ?? false;
 
     if (isVideo && kIsMobile) {
       initializePlayer(storyUrl, coverImgUrl);
@@ -117,13 +118,6 @@ class _StoryScreenState extends State<StoryScreen>
                 child: InkWell(
                   splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
                   onLongPress: () async {
                     final toDownload = await showModalBottomSheet<List<String>>(
                         context: context,
@@ -165,16 +159,27 @@ class _StoryScreenState extends State<StoryScreen>
                       downloader.download(toDownload, args.username);
                     }
                   },
-                  onTap: () async {
-                    downloader.download([storyUrl], args.username);
-                    db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: story.id,
-                      coverImgBytes:
-                          Value(await downloader.getImgBytes(coverImgUrl)),
-                      imgUrls: storyUrl,
-                      username: args.username,
-                    ));
-                  },
+                  onTap: alreadyDownloaded
+                      ? null
+                      : () async {
+                          downloader.download([storyUrl], args.username);
+                          db.saveItemToHistory(HistoryItemsCompanion.insert(
+                            postId: story.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(coverImgUrl)),
+                            imgUrls: storyUrl,
+                            username: args.username,
+                          ));
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      alreadyDownloaded
+                          ? Icons.download_done_rounded
+                          : Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
                 ),
               ),
             )

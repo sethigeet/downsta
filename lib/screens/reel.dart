@@ -87,6 +87,7 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
     final reel = args.reel;
     String videoUrl = reel.urls.first;
     String coverImgUrl = reel.displayUrl;
+    final alreadyDownloaded = db.isDownloadedCache[reel.id] ?? false;
 
     if (kIsMobile) {
       initializePlayer(videoUrl, coverImgUrl);
@@ -114,13 +115,6 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                 child: InkWell(
                   splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  ),
                   onLongPress: () async {
                     final toDownload = await showModalBottomSheet<List<String>>(
                         context: context,
@@ -160,16 +154,27 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                       downloader.download(toDownload, args.username);
                     }
                   },
-                  onTap: () async {
-                    downloader.download([videoUrl], args.username);
-                    db.saveItemToHistory(HistoryItemsCompanion.insert(
-                      postId: reel.id,
-                      coverImgBytes:
-                          Value(await downloader.getImgBytes(coverImgUrl)),
-                      imgUrls: videoUrl,
-                      username: args.username,
-                    ));
-                  },
+                  onTap: alreadyDownloaded
+                      ? null
+                      : () async {
+                          downloader.download([videoUrl], args.username);
+                          db.saveItemToHistory(HistoryItemsCompanion.insert(
+                            postId: reel.id,
+                            coverImgBytes: Value(
+                                await downloader.getImgBytes(coverImgUrl)),
+                            imgUrls: videoUrl,
+                            username: args.username,
+                          ));
+                        },
+                  child: Container(
+                    padding: const EdgeInsets.all(10),
+                    child: Icon(
+                      alreadyDownloaded
+                          ? Icons.download_done_rounded
+                          : Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
                 ),
               ),
             )
