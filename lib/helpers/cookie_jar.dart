@@ -42,8 +42,13 @@ class CookieJar {
       return;
     }
 
-    final parsedCookies =
-        cookies.map((c) => Cookie.fromSetCookieValue(c)).toList();
+    final parsedCookies = List<Cookie>.from(cookies.map((c) {
+      try {
+        return Cookie.fromSetCookieValue(c);
+      } catch (_) {
+        return null;
+      }
+    }).where((c) => c != null));
     await _jar.saveFromResponse(
         Uri(scheme: "https", host: "i.instagram.com"), parsedCookies);
     await _jar.saveFromResponse(
