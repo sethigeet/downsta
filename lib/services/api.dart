@@ -10,6 +10,8 @@ import 'package:downsta/services/services.dart';
 import 'package:downsta/helpers/helpers.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
+final csrfTokenRegex = RegExp(
+    r'\["XIGSharedData", \[\], \{"raw": "\{\\"config\\":\{\\"csrf_token\\":\\"(.*)\\",\\"viewer');
 
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
@@ -190,11 +192,10 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   Future<String?> login(String username, String password) async {
     isLoggedIn = null;
 
-    final csrfRes = await getWindowSharedData(
+    _csrfToken = await getCsrfTokenNew(
       ApiUrls.csrfToken,
       sendCookies: false,
     );
-    _csrfToken = csrfRes["config"]["csrf_token"];
 
     sleep(const Duration(seconds: 1));
 
@@ -609,7 +610,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return postJson(path, host: "i.instagram.com", body: body);
   }
 
-  Future<dynamic> getWindowSharedData(String path,
+  Future<dynamic> getCsrfTokenNew(String path,
       {String host = "www.instagram.com",
       Map<String, dynamic>? queryParameters,
       bool? sendCookies}) async {
@@ -625,15 +626,15 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       HttpHeaders.cookieHeader: sendCookies != null && sendCookies
           ? await cookieJar.getCookiesForHeader(uri)
           : "",
-      // "X-CSRFToken": _csrfToken,
     });
 
     final match = windowSharedDataRegex.firstMatch(res.body);
-    if (match == null) {
-      return null;
+    if (match != null) {
+      return match.group(1)!;
     }
 
-    return jsonDecode(match.group(1)!);
+    final start = res.body.indexOf("csrf_token");
+    return res.body.substring(start, start + 47);
   }
 
   Future<dynamic> getGQLJson(
