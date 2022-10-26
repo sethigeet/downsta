@@ -21,10 +21,12 @@ import 'package:downsta/widgets/widgets.dart';
 
 class PostScreenArguments {
   Post post;
+  int? index;
   String username;
 
   PostScreenArguments({
     required this.post,
+    this.index,
     required this.username,
   });
 }
@@ -89,11 +91,14 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
     final db = Provider.of<DB>(context, listen: false);
     final downloader = Provider.of<Downloader>(context, listen: false);
+    final api = context.watch<Api>();
 
     final args =
         ModalRoute.of(context)!.settings.arguments as PostScreenArguments;
     final post = args.post;
     final username = args.username;
+    final userInfo = api.cache.profiles[username];
+    final index = args.index;
 
     final images = post.urls;
     final coverImages = post.displayUrls;
@@ -199,6 +204,50 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
             KeyboardListener(
               focusNode: _keyboardScrollFocusNode,
               onKeyEvent: (event) {
+                if (index != null) {
+                  if (event.character == "n") {
+                    var posts = userInfo!.posts.edges;
+                    if (index == posts.length - 1) {
+                      return;
+                    }
+
+                    Navigator.pushReplacementNamed(
+                      context,
+                      PostScreen.routeName,
+                      arguments: PostScreenArguments(
+                        post: posts[index + 1],
+                        index: index + 1,
+                        username: username,
+                      ),
+                    );
+
+                    return;
+                  } else if (event.character == "p") {
+                    var posts = userInfo!.posts.edges;
+                    if (index == 0) {
+                      return;
+                    }
+
+                    Navigator.pushReplacementNamed(
+                      context,
+                      PostScreen.routeName,
+                      arguments: PostScreenArguments(
+                        post: posts[index - 1],
+                        index: index - 1,
+                        username: username,
+                      ),
+                    );
+
+                    return;
+                  }
+                }
+
+                if (event.character == "q" ||
+                    event.logicalKey == LogicalKeyboardKey.backspace) {
+                  Navigator.pop(context);
+                  return;
+                }
+
                 int delta = 0;
                 if (event.logicalKey == LogicalKeyboardKey.arrowRight) {
                   delta = 1;

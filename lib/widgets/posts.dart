@@ -1,4 +1,6 @@
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:provider/provider.dart';
 
@@ -20,6 +22,7 @@ class Posts extends StatefulWidget {
 
 class _PostsState extends State<Posts> {
   final _scrollController = ScrollController();
+  final _keyboardScrollFocusNode = FocusNode();
   String? endCursor;
   bool selectionStarted = false;
   Set<int> toDownload = {};
@@ -35,6 +38,7 @@ class _PostsState extends State<Posts> {
   void dispose() {
     _scrollController.removeListener(_scrollListener);
     _scrollController.dispose();
+    _keyboardScrollFocusNode.dispose();
 
     super.dispose();
   }
@@ -89,96 +93,142 @@ class _PostsState extends State<Posts> {
 
     return Stack(
       children: [
-        GridView.builder(
-            itemCount: hasMorePosts ? posts.length + 1 : posts.length,
-            controller: _scrollController,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 1,
-            ),
-            itemBuilder: (context, index) {
-              if (hasMorePosts && index == posts.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
+        KeyboardListener(
+          focusNode: _keyboardScrollFocusNode,
+          onKeyEvent: (event) {
+            if (event is KeyDownEvent) {
+              if (event.logicalKey == LogicalKeyboardKey.home) {
+                _scrollController.animateTo(
+                  0,
+                  duration: const Duration(milliseconds: 200),
+                  curve: Curves.easeInOut,
                 );
+                return;
               }
 
-              final post = posts[index];
-              final imageUrl = post.displayUrl;
-              final toBeDownloaded = toDownload.contains(index);
-              return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(post.id),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
-
-                    final bool alreadyDownloaded = snap.data!;
-                    return Hero(
-                      tag: "post-${post.id}",
-                      child: GestureDetector(
-                        onTap: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
-                            }
-                          } else {
-                            Navigator.pushNamed(
-                              context,
-                              PostScreen.routeName,
-                              arguments: PostScreenArguments(
-                                post: post,
-                                username: widget.username,
-                              ),
-                            );
-                          }
-                        },
-                        onLongPress: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
-                            }
-                          } else {
-                            setState(() {
-                              selectionStarted = true;
-                              if (!alreadyDownloaded) {
-                                toDownload.add(index);
-                              }
-                            });
-                          }
-                        },
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedImage(imageUrl: imageUrl),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: DownloadedStatus(
-                                show: selectionStarted,
-                                toBeDownloaded: toBeDownloaded,
-                                alreadyDownloaded: alreadyDownloaded,
-                              ),
-                            )
-                          ],
-                        ),
-                      ),
+              double delta = 0;
+              if (event.character == "j" ||
+                  event.logicalKey == LogicalKeyboardKey.arrowDown) {
+                delta = 100;
+              } else if (event.character == "d" ||
+                  event.logicalKey == LogicalKeyboardKey.pageDown) {
+                delta = 500;
+              } else if (event.character == "k" ||
+                  event.logicalKey == LogicalKeyboardKey.arrowUp) {
+                delta = -100;
+              } else if (event.character == "u" ||
+                  event.logicalKey == LogicalKeyboardKey.pageUp) {
+                delta = -500;
+              }
+              _scrollController.animateTo(
+                _scrollController.offset + delta,
+                duration: const Duration(milliseconds: 200),
+                curve: Curves.easeInOut,
+              );
+            }
+          },
+          child: Listener(
+            onPointerHover: (event) {
+              if (!_keyboardScrollFocusNode.hasFocus &&
+                  event.kind == PointerDeviceKind.mouse) {
+                // Request focus in order to be able to use keyboard keys
+                FocusScope.of(context).requestFocus(_keyboardScrollFocusNode);
+              }
+            },
+            child: GridView.builder(
+                itemCount: hasMorePosts ? posts.length + 1 : posts.length,
+                controller: _scrollController,
+                gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                  crossAxisCount: 3,
+                  childAspectRatio: 1,
+                ),
+                itemBuilder: (context, index) {
+                  if (hasMorePosts && index == posts.length) {
+                    return const Padding(
+                      padding: EdgeInsets.symmetric(vertical: 32),
+                      child: Center(child: CircularProgressIndicator()),
                     );
-                  });
-            }),
+                  }
+
+                  final post = posts[index];
+                  final imageUrl = post.displayUrl;
+                  final toBeDownloaded = toDownload.contains(index);
+                  return FutureBuilder<bool>(
+                      future: db.isPostDownloaded(post.id),
+                      builder: (context, snap) {
+                        if (!snap.hasData) {
+                          return const Center(
+                              child: CircularProgressIndicator());
+                        }
+
+                        final bool alreadyDownloaded = snap.data!;
+                        return Hero(
+                          tag: "post-${post.id}",
+                          child: GestureDetector(
+                            onTap: () {
+                              if (selectionStarted) {
+                                if (!alreadyDownloaded) {
+                                  setState(() {
+                                    if (toBeDownloaded) {
+                                      toDownload.remove(index);
+                                    } else {
+                                      toDownload.add(index);
+                                    }
+                                  });
+                                }
+                              } else {
+                                Navigator.pushNamed(
+                                  context,
+                                  PostScreen.routeName,
+                                  arguments: PostScreenArguments(
+                                    post: post,
+                                    index: index,
+                                    username: widget.username,
+                                  ),
+                                );
+                              }
+                            },
+                            onLongPress: () {
+                              if (selectionStarted) {
+                                if (!alreadyDownloaded) {
+                                  setState(() {
+                                    if (toBeDownloaded) {
+                                      toDownload.remove(index);
+                                    } else {
+                                      toDownload.add(index);
+                                    }
+                                  });
+                                }
+                              } else {
+                                setState(() {
+                                  selectionStarted = true;
+                                  if (!alreadyDownloaded) {
+                                    toDownload.add(index);
+                                  }
+                                });
+                              }
+                            },
+                            child: Stack(
+                              fit: StackFit.expand,
+                              children: [
+                                CachedImage(imageUrl: imageUrl),
+                                Positioned(
+                                  top: 10,
+                                  right: 10,
+                                  child: DownloadedStatus(
+                                    show: selectionStarted,
+                                    toBeDownloaded: toBeDownloaded,
+                                    alreadyDownloaded: alreadyDownloaded,
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        );
+                      });
+                }),
+          ),
+        ),
         Positioned(
           right: 15,
           bottom: 15,
