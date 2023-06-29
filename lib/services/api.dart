@@ -170,7 +170,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       "X-CSRFToken": _csrfToken,
     });
     var res = await client.send(req);
-    if (!res.isRedirect) {
+    if (res.isRedirect) {
       isLoggedIn = false;
       return false;
     }
