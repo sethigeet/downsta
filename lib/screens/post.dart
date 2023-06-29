@@ -127,20 +127,30 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                   splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
                   borderRadius: BorderRadius.circular(25),
                   onLongPress: () async {
-                    final currUrl = images[(_pageController.page ?? 0).floor()];
+                    final currIdx = (_pageController.page ?? 0).floor();
+                    final currUrl = images[currIdx];
                     final toDownload = await showModalBottomSheet<List<String>>(
                         context: context,
                         builder: (context) {
                           return SizedBox(
-                            height: 100,
+                            height: (currUrl.contains(".mp4")) ? 150 : 100,
                             child: Column(children: [
                               ListTile(
                                 onTap: () => Navigator.pop(context, [currUrl]),
                                 title: currUrl.contains(".mp4")
                                     ? const Text("Download current video")
                                     : const Text("Download current image"),
-                                leading: const Icon(Icons.image),
+                                leading: currUrl.contains(".mp4")
+                                    ? const Icon(Icons.video_file_rounded)
+                                    : const Icon(Icons.image),
                               ),
+                              if (currUrl.contains(".mp4"))
+                                ListTile(
+                                  onTap: () => Navigator.pop(
+                                      context, [coverImages[currIdx]]),
+                                  title: const Text("Download cover image"),
+                                  leading: const Icon(Icons.image),
+                                ),
                               ListTile(
                                   onTap: () => Navigator.pop(context, images),
                                   title: const Text("Download entire post"),

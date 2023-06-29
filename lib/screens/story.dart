@@ -135,7 +135,7 @@ class _StoryScreenState extends State<StoryScreen>
                                     onTap: () =>
                                         Navigator.pop(context, [coverImgUrl]),
                                     title: const Text("Download cover image"),
-                                    leading: const Icon(Icons.collections)),
+                                    leading: const Icon(Icons.image)),
                               if (isVideo)
                                 ListTile(
                                     onTap: () => Navigator.pop(

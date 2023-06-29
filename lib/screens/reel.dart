@@ -123,15 +123,16 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                             height: 150,
                             child: Column(children: [
                               ListTile(
-                                onTap: () => Navigator.pop(context, [videoUrl]),
-                                title: const Text("Download video"),
-                                leading: const Icon(Icons.image),
-                              ),
+                                  onTap: () =>
+                                      Navigator.pop(context, [videoUrl]),
+                                  title: const Text("Download video"),
+                                  leading:
+                                      const Icon(Icons.video_file_rounded)),
                               ListTile(
                                   onTap: () =>
                                       Navigator.pop(context, [coverImgUrl]),
                                   title: const Text("Download cover image"),
-                                  leading: const Icon(Icons.collections)),
+                                  leading: const Icon(Icons.image)),
                               ListTile(
                                   onTap: () => Navigator.pop(
                                       context, [coverImgUrl, videoUrl]),

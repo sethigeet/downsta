@@ -139,7 +139,7 @@ class _VideoScreenState extends State<VideoScreen>
                                   onTap: () =>
                                       Navigator.pop(context, [coverImgUrl]),
                                   title: const Text("Download cover image"),
-                                  leading: const Icon(Icons.collections)),
+                                  leading: const Icon(Icons.image)),
                               ListTile(
                                   onTap: () => Navigator.pop(
                                       context, [coverImgUrl, videoUrl]),
