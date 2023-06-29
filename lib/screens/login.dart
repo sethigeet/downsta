@@ -96,8 +96,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
               const SizedBox(height: 20),
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(Icons.person, size: 15),
                   SizedBox(width: 5),
                   Text("Username", style: TextStyle(fontSize: 15)),
@@ -116,8 +116,8 @@ class _LoginScreenState extends State<LoginScreen> {
                 },
               ),
               const SizedBox(height: 20),
-              Row(
-                children: const [
+              const Row(
+                children: [
                   Icon(Icons.lock, size: 15),
                   SizedBox(width: 5),
                   Text("Password", style: TextStyle(fontSize: 15)),
@@ -178,6 +178,7 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
+    // ignore: use_build_context_synchronously
     showDialog<void>(
       context: context,
       barrierDismissible: false,

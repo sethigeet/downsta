@@ -1,5 +1,3 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
@@ -53,19 +51,20 @@ class _MyAppState extends State<MyApp> {
     super.initState();
 
     // ask for permissions
-    if (Platform.isAndroid || Platform.isIOS) {
+    if (kIsMobile) {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (await Permission.storage.request().isGranted) {
         } else if (await Permission.speech.isPermanentlyDenied) {
+          // ignore: use_build_context_synchronously
           showDialog<void>(
             context: context,
             barrierDismissible: false,
             builder: (BuildContext context) {
               return AlertDialog(
                 title: const Text("Storage Permission"),
-                content: SingleChildScrollView(
+                content: const SingleChildScrollView(
                   child: ListBody(
-                    children: const [
+                    children: [
                       Text(
                           "Permission for storage access is required for downloading!"),
                     ],

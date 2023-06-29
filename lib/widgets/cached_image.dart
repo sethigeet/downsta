@@ -17,13 +17,13 @@ class CachedImage extends StatelessWidget {
       cacheKey: getCacheKey(imageUrl),
       fit: BoxFit.cover,
       progressIndicatorBuilder: (context, url, downloadProgress) => Container(
-        color: theme.backgroundColor,
+        color: theme.colorScheme.background,
         child: Center(
           child: CircularProgressIndicator(value: downloadProgress.progress),
         ),
       ),
       errorWidget: (context, url, error) => Container(
-        color: theme.backgroundColor,
+        color: theme.colorScheme.background,
         child: const Center(child: Icon(Icons.error)),
       ),
     );

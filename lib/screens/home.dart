@@ -49,13 +49,14 @@ class _HomeScreenState extends State<HomeScreen> {
       final postInfo = await api.getPostInfo(shortCode);
 
       if (postInfo == null) {
+        // ignore: use_build_context_synchronously
         showDialog<void>(
             context: context,
             builder: (context) => AlertDialog(
                   title: const Text("Unable to retreive post!"),
-                  content: SingleChildScrollView(
+                  content: const SingleChildScrollView(
                     child: ListBody(
-                      children: const [
+                      children: [
                         Text(
                             "You may not follow this account or you have been blocked by this account!"),
                       ],
@@ -183,7 +184,7 @@ class MyDrawer extends StatelessWidget {
                     user.profilePicUrl,
                     cacheKey: getCacheKey(user.profilePicUrl),
                   ),
-                  backgroundColor: theme.backgroundColor,
+                  backgroundColor: theme.colorScheme.background,
                   radius: 35,
                 ),
                 const SizedBox(height: 15),
@@ -219,12 +220,10 @@ class MyDrawer extends StatelessWidget {
                                     child: Text(username),
                                   ))
                               .toList(),
-                          DropdownMenuItem(
+                          const DropdownMenuItem(
                             value: "add-user",
-                            child: Row(children: const [
-                              Icon(Icons.add),
-                              Text("Add User")
-                            ]),
+                            child: Row(
+                                children: [Icon(Icons.add), Text("Add User")]),
                           )
                         ],
                         onChanged: (newVal) {
@@ -265,9 +264,9 @@ class MyDrawer extends StatelessWidget {
                 builder: (BuildContext context) {
                   return AlertDialog(
                     title: const Text("Not Implemented!"),
-                    content: SingleChildScrollView(
+                    content: const SingleChildScrollView(
                       child: ListBody(
-                        children: const [
+                        children: [
                           Text("TODO :)"),
                         ],
                       ),

@@ -32,7 +32,7 @@ class UserCard extends StatelessWidget {
                 profilePicUrl,
                 cacheKey: getCacheKey(profilePicUrl),
               ),
-              backgroundColor: theme.backgroundColor,
+              backgroundColor: theme.colorScheme.background,
             ),
           ),
         ),

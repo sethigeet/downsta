@@ -329,7 +329,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                     activeIndex = index;
                   }),
                   backgroundDecoration:
-                      BoxDecoration(color: theme.backgroundColor),
+                      BoxDecoration(color: theme.colorScheme.background),
                   builder: (context, index) {
                     final url = images[index];
                     final coverImgUrl = coverImages[index];

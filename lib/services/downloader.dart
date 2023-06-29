@@ -1,13 +1,12 @@
 import 'dart:collection';
 import 'dart:io';
 
-import 'package:downsta/globals.dart';
-import 'package:drift/drift.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/foundation.dart';
 
 import 'package:flutter_cache_manager/flutter_cache_manager.dart';
 
+import 'package:downsta/globals.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 

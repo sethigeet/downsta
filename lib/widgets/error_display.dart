@@ -9,8 +9,8 @@ class ErrorDisplay extends StatelessWidget {
   Widget build(BuildContext context) {
     return Center(
         child: Column(children: [
-      Row(
-        children: const [
+      const Row(
+        children: [
           Icon(Icons.error_outline, color: Colors.red),
           Text("An error occurred!")
         ],
