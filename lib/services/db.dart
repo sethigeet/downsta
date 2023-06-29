@@ -1,11 +1,7 @@
-import 'dart:io';
-
 import 'package:drift/drift.dart';
-import 'package:drift/native.dart';
-import 'package:path/path.dart' as p;
 
+import 'package:downsta/helpers/db_connection/db_connection.dart' as conn;
 import 'package:downsta/models/models.dart';
-import 'package:downsta/utils.dart';
 
 part 'db.g.dart';
 
@@ -16,12 +12,12 @@ part 'db.g.dart';
   "countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items',
 })
 class DB extends _$DB {
-  DB() : super(DB._openConnection());
+  DB() : super(conn.connect());
 
   final Map<String, bool> isDownloadedCache = {};
 
   @override
-  int get schemaVersion => 2;
+  int get schemaVersion => 3;
 
   @override
   MigrationStrategy get migration =>
@@ -30,17 +26,15 @@ class DB extends _$DB {
       }, onUpgrade: (Migrator m, int from, int to) async {
         // added the preferences table
         if (from < 2) {
-          m.createTable(preferences);
+          await m.createTable(preferences);
+        } else if (from < 3) {
+          await m.alterTable(TableMigration(historyItems, columnTransformer: {
+            historyItems.downloadTime: historyItems.downloadTime.cast<int>(),
+          }));
         }
+      }, beforeOpen: (details) async {
+        await conn.validateDatabaseSchema(this);
       });
-
-  static LazyDatabase _openConnection() {
-    return LazyDatabase(() async {
-      final dir = await getAppDataStorageDir();
-      final file = File(p.join(dir, 'db.sqlite'));
-      return NativeDatabase(file);
-    });
-  }
 
   Future<String?> getLastLoggedInUser() async {
     var query = select(preferences);

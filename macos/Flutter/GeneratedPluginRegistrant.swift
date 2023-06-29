@@ -5,7 +5,7 @@
 import FlutterMacOS
 import Foundation
 
-import path_provider_macos
+import path_provider_foundation
 import sqflite
 import sqlite3_flutter_libs
 import wakelock_macos
