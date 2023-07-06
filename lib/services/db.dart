@@ -8,6 +8,7 @@ part 'db.g.dart';
 @DriftDatabase(tables: [
   HistoryItems,
   Preferences,
+  Cookies
 ], queries: {
   "countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items',
 })
@@ -17,20 +18,25 @@ class DB extends _$DB {
   final Map<String, bool> isDownloadedCache = {};
 
   @override
-  int get schemaVersion => 3;
+  int get schemaVersion => 4;
 
   @override
   MigrationStrategy get migration =>
       MigrationStrategy(onCreate: (Migrator m) async {
         await m.createAll();
       }, onUpgrade: (Migrator m, int from, int to) async {
-        // added the preferences table
+        // add/update the preferences table
         if (from < 2) {
           await m.createTable(preferences);
         } else if (from < 3) {
           await m.alterTable(TableMigration(historyItems, columnTransformer: {
             historyItems.downloadTime: historyItems.downloadTime.cast<int>(),
           }));
+        }
+
+        // add the cookies table
+        if (from < 4) {
+          await m.createTable(cookies);
         }
       }, beforeOpen: (details) async {
         await conn.validateDatabaseSchema(this);
@@ -142,4 +148,24 @@ class DB extends _$DB {
     var query = delete(historyItems)..where((item) => item.id.equals(id));
     await query.go();
   }
+
+  Future<Cookie?> getCookie(String username) =>
+      (select(cookies)..where((cookie) => cookie.username.equals(username)))
+          .getSingleOrNull();
+
+  Future<void> createCookie(String username) async {
+    if ((await getCookie(username)) != null) {
+      return;
+    }
+
+    await into(cookies).insert(CookiesCompanion.insert(username: username));
+  }
+
+  Future<void> updateCookie(String username, CookiesCompanion changes) =>
+      (update(cookies)..where((cookie) => cookie.username.equals(username)))
+          .write(changes);
+
+  Future<void> deleteCookie(String username) =>
+      (delete(cookies)..where((cookie) => cookie.username.equals(username)))
+          .go();
 }

@@ -120,7 +120,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   Api(this.username, this.cookieJar, this.db, this._csrfToken);
 
   static Future<Api> create(String username, DB db) async {
-    final cookies = await CookieJar.getNewCookieJar(username);
+    final cookies = await CookieJar.getNewCookieJar(db, username);
     return Api(username, cookies, db, "");
   }
 
@@ -181,7 +181,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<void> switchUser(String username) async {
     this.username = username;
-    cookieJar = await CookieJar.getNewCookieJar(username);
+    cookieJar = await CookieJar.getNewCookieJar(db, username);
     cache.resetCache();
 
     await db.setLastLoggedInUser(username);

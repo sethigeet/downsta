@@ -1,25 +1,80 @@
-import 'dart:io';
-
+import 'package:drift/drift.dart';
 import 'package:cookie_jar/cookie_jar.dart';
 
-import 'package:downsta/utils.dart';
+import 'package:downsta/services/db.dart' show DB, CookiesCompanion;
 
 final cookieSplitRegex = RegExp(r',(?=[^ ])');
+
+class DBStorage implements Storage {
+  final DB db;
+  final String username;
+
+  DBStorage(this.db, this.username);
+
+  @override
+  Future<void> init(bool persistSession, bool ignoreExpires) =>
+      db.createCookie(username);
+
+  @override
+  Future<void> delete(String key) async {
+    var changes = const CookiesCompanion();
+    switch (key) {
+      case ".index":
+        changes = const CookiesCompanion(index: Value(""));
+        break;
+      case ".domains":
+        changes = const CookiesCompanion(domains: Value(""));
+        break;
+    }
+
+    db.updateCookie(username, changes);
+  }
+
+  @override
+  Future<void> deleteAll(List<String> keys) => db.deleteCookie(username);
+
+  @override
+  Future<String?> read(String key) async {
+    var cookie = await db.getCookie(username);
+    if (cookie == null) {
+      return null;
+    }
+
+    switch (key) {
+      case ".index":
+        return cookie.index;
+      case ".domains":
+        return cookie.domains;
+    }
+
+    return null;
+  }
+
+  @override
+  Future<void> write(String key, String value) async {
+    var changes = const CookiesCompanion();
+    switch (key) {
+      case ".index":
+        changes = CookiesCompanion(index: Value(value));
+        break;
+      case ".domains":
+        changes = CookiesCompanion(domains: Value(value));
+        break;
+    }
+
+    db.updateCookie(username, changes);
+  }
+}
 
 class CookieJar {
   late PersistCookieJar _jar;
 
-  CookieJar(String filename) {
-    _jar = PersistCookieJar(storage: FileStorage(filename));
+  CookieJar(DB db, String username) {
+    _jar = PersistCookieJar(storage: DBStorage(db, username));
   }
 
-  static Future<String> _getDirPath(String username) async {
-    final dir = await getAppDataStorageDir();
-    return "$dir/session-cookies-$username";
-  }
-
-  static Future<CookieJar> getNewCookieJar(String username) async {
-    return CookieJar(await CookieJar._getDirPath(username));
+  static Future<CookieJar> getNewCookieJar(DB db, String username) async {
+    return CookieJar(db, username);
   }
 
   Future<List<Cookie>> getCookies(Uri uri) => _jar.loadForRequest(uri);
@@ -56,7 +111,8 @@ class CookieJar {
   }
 
   Future<void> deleteCookies(String username) async {
-    final path = await CookieJar._getDirPath(username);
-    await Directory(path).delete(recursive: true);
+    try {
+      await _jar.deleteAll();
+    } catch (_) {}
   }
 }

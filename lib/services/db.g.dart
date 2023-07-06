@@ -561,10 +561,257 @@ class PreferencesCompanion extends UpdateCompanion<Preference> {
   }
 }
 
+class $CookiesTable extends Cookies with TableInfo<$CookiesTable, Cookie> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $CookiesTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+      'id', aliasedName, false,
+      hasAutoIncrement: true,
+      type: DriftSqlType.int,
+      requiredDuringInsert: false,
+      defaultConstraints:
+          GeneratedColumn.constraintIsAlways('PRIMARY KEY AUTOINCREMENT'));
+  static const VerificationMeta _usernameMeta =
+      const VerificationMeta('username');
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+      'username', aliasedName, false,
+      additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 100),
+      type: DriftSqlType.string,
+      requiredDuringInsert: true);
+  static const VerificationMeta _indexMeta = const VerificationMeta('index');
+  @override
+  late final GeneratedColumn<String> index = GeneratedColumn<String>(
+      'index', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(""));
+  static const VerificationMeta _domainsMeta =
+      const VerificationMeta('domains');
+  @override
+  late final GeneratedColumn<String> domains = GeneratedColumn<String>(
+      'domains', aliasedName, false,
+      type: DriftSqlType.string,
+      requiredDuringInsert: false,
+      defaultValue: const Constant(""));
+  @override
+  List<GeneratedColumn> get $columns => [id, username, index, domains];
+  @override
+  String get aliasedName => _alias ?? 'cookies';
+  @override
+  String get actualTableName => 'cookies';
+  @override
+  VerificationContext validateIntegrity(Insertable<Cookie> instance,
+      {bool isInserting = false}) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('username')) {
+      context.handle(_usernameMeta,
+          username.isAcceptableOrUnknown(data['username']!, _usernameMeta));
+    } else if (isInserting) {
+      context.missing(_usernameMeta);
+    }
+    if (data.containsKey('index')) {
+      context.handle(
+          _indexMeta, index.isAcceptableOrUnknown(data['index']!, _indexMeta));
+    }
+    if (data.containsKey('domains')) {
+      context.handle(_domainsMeta,
+          domains.isAcceptableOrUnknown(data['domains']!, _domainsMeta));
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Cookie map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Cookie(
+      id: attachedDatabase.typeMapping
+          .read(DriftSqlType.int, data['${effectivePrefix}id'])!,
+      username: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}username'])!,
+      index: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}index'])!,
+      domains: attachedDatabase.typeMapping
+          .read(DriftSqlType.string, data['${effectivePrefix}domains'])!,
+    );
+  }
+
+  @override
+  $CookiesTable createAlias(String alias) {
+    return $CookiesTable(attachedDatabase, alias);
+  }
+}
+
+class Cookie extends DataClass implements Insertable<Cookie> {
+  final int id;
+  final String username;
+  final String index;
+  final String domains;
+  const Cookie(
+      {required this.id,
+      required this.username,
+      required this.index,
+      required this.domains});
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['username'] = Variable<String>(username);
+    map['index'] = Variable<String>(index);
+    map['domains'] = Variable<String>(domains);
+    return map;
+  }
+
+  CookiesCompanion toCompanion(bool nullToAbsent) {
+    return CookiesCompanion(
+      id: Value(id),
+      username: Value(username),
+      index: Value(index),
+      domains: Value(domains),
+    );
+  }
+
+  factory Cookie.fromJson(Map<String, dynamic> json,
+      {ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Cookie(
+      id: serializer.fromJson<int>(json['id']),
+      username: serializer.fromJson<String>(json['username']),
+      index: serializer.fromJson<String>(json['index']),
+      domains: serializer.fromJson<String>(json['domains']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'username': serializer.toJson<String>(username),
+      'index': serializer.toJson<String>(index),
+      'domains': serializer.toJson<String>(domains),
+    };
+  }
+
+  Cookie copyWith(
+          {int? id, String? username, String? index, String? domains}) =>
+      Cookie(
+        id: id ?? this.id,
+        username: username ?? this.username,
+        index: index ?? this.index,
+        domains: domains ?? this.domains,
+      );
+  @override
+  String toString() {
+    return (StringBuffer('Cookie(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('index: $index, ')
+          ..write('domains: $domains')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, username, index, domains);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Cookie &&
+          other.id == this.id &&
+          other.username == this.username &&
+          other.index == this.index &&
+          other.domains == this.domains);
+}
+
+class CookiesCompanion extends UpdateCompanion<Cookie> {
+  final Value<int> id;
+  final Value<String> username;
+  final Value<String> index;
+  final Value<String> domains;
+  const CookiesCompanion({
+    this.id = const Value.absent(),
+    this.username = const Value.absent(),
+    this.index = const Value.absent(),
+    this.domains = const Value.absent(),
+  });
+  CookiesCompanion.insert({
+    this.id = const Value.absent(),
+    required String username,
+    this.index = const Value.absent(),
+    this.domains = const Value.absent(),
+  }) : username = Value(username);
+  static Insertable<Cookie> custom({
+    Expression<int>? id,
+    Expression<String>? username,
+    Expression<String>? index,
+    Expression<String>? domains,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (username != null) 'username': username,
+      if (index != null) 'index': index,
+      if (domains != null) 'domains': domains,
+    });
+  }
+
+  CookiesCompanion copyWith(
+      {Value<int>? id,
+      Value<String>? username,
+      Value<String>? index,
+      Value<String>? domains}) {
+    return CookiesCompanion(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      index: index ?? this.index,
+      domains: domains ?? this.domains,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (index.present) {
+      map['index'] = Variable<String>(index.value);
+    }
+    if (domains.present) {
+      map['domains'] = Variable<String>(domains.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('CookiesCompanion(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('index: $index, ')
+          ..write('domains: $domains')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$DB extends GeneratedDatabase {
   _$DB(QueryExecutor e) : super(e);
   late final $HistoryItemsTable historyItems = $HistoryItemsTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
+  late final $CookiesTable cookies = $CookiesTable(this);
   Selectable<int> countHistoryItems() {
     return customSelect('SELECT COUNT(*) AS c FROM history_items',
         variables: [],
@@ -578,5 +825,5 @@ abstract class _$DB extends GeneratedDatabase {
       allSchemaEntities.whereType<TableInfo<Table, Object?>>();
   @override
   List<DatabaseSchemaEntity> get allSchemaEntities =>
-      [historyItems, preferences];
+      [historyItems, preferences, cookies];
 }
