@@ -19,10 +19,9 @@ Future<String> getAppDataStorageDir() async {
 }
 
 Future<String> getDownloadsDir() async {
+  // `getDownloadsDirectory` is not available on Android, so hardcode it!
   if (Platform.isAndroid) {
     return "/storage/emulated/0";
-  } else if (Platform.isIOS) {
-    throw UnimplementedError("IOS downloads directory is not known!");
   }
 
   return (await getDownloadsDirectory())!.path;
