@@ -1,7 +1,7 @@
 name: downsta
 description: An app to download posts, stories, reels and videos from instagram.
 
-publish_to: 'none'
+publish_to: "none"
 
 version: 1.0.1
 
@@ -16,7 +16,7 @@ dependencies:
   path_provider: ^2.0.11
   cookie_jar: ^4.0.5
   http: ^0.13.4
-  cached_network_image: ^3.2.1
+  cached_network_image: ^3.3.0
   flutter_cache_manager: ^3.3.0
   photo_view: ^0.14.0
   smooth_page_indicator: ^1.0.0+2

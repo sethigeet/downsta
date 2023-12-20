@@ -70,11 +70,14 @@ class _ProfileHeaderState extends State<ProfileHeader> {
     final username = widget.user.username;
     Navigator.pushNamed(context, PostScreen.routeName,
         arguments: PostScreenArguments(
-          post: Post({
-            "display_url": url,
+          post: PostV2({
+            "image_versions2": {
+              "candidates": [
+                {"url": url}
+              ]
+            },
             "id":
                 "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
-            "is_video": false,
           }),
           username: username,
         ));

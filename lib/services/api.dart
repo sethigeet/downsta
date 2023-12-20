@@ -31,6 +31,7 @@ abstract class ApiUrls {
   static const userInfo2 = "/api/v1/users/{USERID}/info/";
   static const following = "/api/v1/friendships/{USERID}/following/";
 
+  static const posts = "api/v1/feed/user/{USERNAME}/username/";
   static const reels = "/api/v1/clips/user/";
   static const videoInfo = "/api/v1/media/{ID}/info/";
 
@@ -285,9 +286,38 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     var profile = Profile(res["data"]["user"]);
     userInfo[username] = profile;
 
+    await getPosts(username, force: true);
+
     notifyListeners();
 
     return profile;
+  }
+
+  Future<PaginatedResponseV2<PostV2>> getPosts(String username,
+      {String? nextMaxId, bool force = false}) async {
+    var posts = cache.profiles[username]!.posts;
+    if (nextMaxId == null && !force) {
+      return posts;
+    }
+
+    Map<String, dynamic> queryParameters = {"count": "12"};
+    if (nextMaxId != null) {
+      queryParameters["max_id"] = nextMaxId;
+    }
+    var res = await getJson(
+      ApiUrls.posts.replaceAll("{USERNAME}", username),
+      queryParameters: queryParameters,
+    );
+    posts.addEdges(
+        List<PostV2>.from((res["items"] as List).map((item) => PostV2(item))));
+    posts.updatePageInfo({
+      "next_max_id": res["next_max_id"],
+      "more_available": res["more_available"],
+    });
+
+    notifyListeners();
+
+    return posts;
   }
 
   Future<Video> getVideoInfo(String id, {bool force = false}) async {

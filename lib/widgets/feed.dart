@@ -4,7 +4,6 @@ import 'package:provider/provider.dart';
 
 import 'package:downsta/models/models.dart';
 import 'package:downsta/services/api.dart';
-import 'package:downsta/widgets/widgets.dart';
 
 class Feed extends StatefulWidget {
   const Feed({Key? key}) : super(key: key);
@@ -101,8 +100,9 @@ class _FeedState extends State<Feed> {
             return const Center(child: CircularProgressIndicator());
           }
 
-          var post = posts[index];
-          return PostCard(post: post);
+          // var post = posts[index];
+          // return PostCard(post: post);
+          return const Text("TODO :)");
         });
   }
 }

@@ -24,7 +24,7 @@ class PostCard extends StatefulWidget {
     required this.post,
   }) : super(key: key);
 
-  final Post post;
+  final PostV2 post;
 
   @override
   State<PostCard> createState() => _PostCardState();

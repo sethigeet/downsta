@@ -20,7 +20,7 @@ import 'package:downsta/utils.dart';
 import 'package:downsta/widgets/widgets.dart';
 
 class PostScreenArguments {
-  Post post;
+  PostV2 post;
   int? index;
   String username;
 
@@ -216,7 +216,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               onKeyEvent: (event) {
                 if (index != null) {
                   if (event.character == "n") {
-                    var posts = userInfo!.posts.edges;
+                    var posts = userInfo!.posts.items;
                     if (index == posts.length - 1) {
                       return;
                     }
@@ -233,7 +233,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
                     return;
                   } else if (event.character == "p") {
-                    var posts = userInfo!.posts.edges;
+                    var posts = userInfo!.posts.items;
                     if (index == 0) {
                       return;
                     }

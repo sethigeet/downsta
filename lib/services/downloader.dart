@@ -44,7 +44,9 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
       ext = ext == "webp" ? "jpg" : ext;
       ext = ext == "jpeg" ? "jpg" : ext;
 
-      var uniqueId = nameSegs[nameSegs.length - 2];
+      var uniqueId = nameSegs.length == 1
+          ? nameSegs[0].split(".").first
+          : nameSegs[nameSegs.length - 2];
       if (uniqueId == "video") {
         uniqueId = uri.queryParameters["vs"]!.split("_").first;
       }

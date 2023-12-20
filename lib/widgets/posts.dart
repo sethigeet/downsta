@@ -6,7 +6,6 @@ import 'package:provider/provider.dart';
 
 import 'package:drift/drift.dart' show Value;
 
-import 'package:downsta/models/models.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
@@ -23,7 +22,7 @@ class Posts extends StatefulWidget {
 class _PostsState extends State<Posts> {
   final _scrollController = ScrollController();
   final _keyboardScrollFocusNode = FocusNode();
-  String? endCursor;
+  String? nextMaxId;
   bool selectionStarted = false;
   Set<int> toDownload = {};
 
@@ -44,7 +43,7 @@ class _PostsState extends State<Posts> {
   }
 
   void _scrollListener() async {
-    if (endCursor == null) {
+    if (nextMaxId == null) {
       return;
     }
 
@@ -52,16 +51,7 @@ class _PostsState extends State<Posts> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.get<Post>(
-        queryHash: ApiQueryHashes.posts,
-        params: {
-          "id": await api.getUserId(widget.username),
-          "after": endCursor
-        },
-        resExtractor: (res) => res["user"]["edge_owner_to_timeline_media"],
-        cacheExtractor: (cache) => cache.profiles[widget.username]?.posts,
-        nodeConverter: (node) => Post(node),
-      );
+      await api.getPosts(widget.username, nextMaxId: nextMaxId);
     }
   }
 
@@ -79,7 +69,7 @@ class _PostsState extends State<Posts> {
       return Container();
     }
 
-    var posts = userInfo.posts.edges;
+    var posts = userInfo.posts.items;
 
     if (posts.isEmpty) {
       return const NoContent(
@@ -88,8 +78,8 @@ class _PostsState extends State<Posts> {
       );
     }
 
-    var hasMorePosts = userInfo.posts.hasMoreEdges;
-    endCursor = userInfo.posts.endCursor;
+    var hasMorePosts = userInfo.posts.moreAvailable;
+    nextMaxId = userInfo.posts.nextMaxId;
 
     return Stack(
       children: [

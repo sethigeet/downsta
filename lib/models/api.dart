@@ -2,16 +2,9 @@ import 'package:flutter/foundation.dart';
 
 class Profile {
   final Map<String, dynamic> _node;
-  late final PaginatedResponse<Post> _posts;
+  late final PaginatedResponseV2<PostV2> _posts;
   Profile(this._node) {
-    if (_node["edge_owner_to_timeline_media"] != null) {
-      _posts = PaginatedResponse<Post>(
-        _node["edge_owner_to_timeline_media"],
-        edgeConverter: (node) => Post(node),
-      );
-    } else {
-      _posts = PaginatedResponse<Post>.empty();
-    }
+    _posts = PaginatedResponseV2<PostV2>.empty();
   }
 
   String get id => _node["id"];
@@ -31,7 +24,7 @@ class Profile {
   bool get isPrivate => _node["is_private"];
   bool get followedByViewer => _node["followed_by_viewer"];
 
-  PaginatedResponse<Post> get posts => _posts;
+  PaginatedResponseV2<PostV2> get posts => _posts;
 
   void update(Map<String, dynamic> node) {
     _node.addAll(node);
@@ -79,6 +72,52 @@ class Post {
     if (_node["edge_sidecar_to_children"] != null) {
       return List<String>.from(_node["edge_sidecar_to_children"]["edges"]
           .map((img) => img["node"]["display_url"]));
+    }
+
+    return [displayUrl];
+  }
+}
+
+class PostV2 {
+  final Map<String, dynamic> _node;
+  PostV2(this._node);
+
+  String get id => _node["id"].split("_").first;
+
+  String get username => _node["user"]["username"];
+  String get profilePicUrl => _node["user"]["profile_pic_url"];
+
+  String get displayUrl => _node["image_versions2"]["candidates"].first["url"];
+
+  bool get isVideo => _node["video_duration"] != null;
+
+  Map<String, dynamic> get _dimensions =>
+      _node["image_versions2"]["candidates"].first;
+  int get width => _dimensions["width"];
+  int get height => _dimensions["height"];
+  double get aspectRatio => height / width;
+
+  List<String> get urls {
+    if (isVideo) {
+      return [_node["video_versions"].first["url"]];
+    }
+
+    if (_node["carousel_media"] != null) {
+      return List<String>.from(_node["carousel_media"].map((node) {
+        if (node["video_duration"] != null) {
+          return node["video_versions"].first["url"];
+        }
+        return node["image_versions2"]["candidates"].first["url"];
+      }));
+    }
+
+    return [displayUrl];
+  }
+
+  List<String> get displayUrls {
+    if (_node["carousel_media"] != null) {
+      return List<String>.from(_node["carousel_media"]
+          .map((img) => img["image_versions2"]["candidates"].first["url"]));
     }
 
     return [displayUrl];
@@ -158,4 +197,30 @@ class PaginatedResponse<T> {
   void addEdges(Iterable<T> newEdges) => edges.addAll(newEdges);
   void updatePageInfo(Map<String, dynamic> newInfo) =>
       _node["page_info"] = newInfo;
+}
+
+class PaginatedResponseV2<T> {
+  final Map<String, dynamic> _node;
+  List<T> items = [];
+  PaginatedResponseV2(this._node, {T Function(dynamic node)? itemConverter}) {
+    if (_node["items"].isNotEmpty) {
+      if (itemConverter == null) {
+        throw ErrorHint("itemConverter must be passed if items are passed");
+      }
+      items = List<T>.from(_node["items"].map(itemConverter));
+    }
+  }
+
+  factory PaginatedResponseV2.empty() {
+    return PaginatedResponseV2<T>({"items": [], "paging_info": null});
+  }
+
+  Map<String, dynamic>? get _pagingInfo => _node["paging_info"];
+  bool get moreAvailable =>
+      _pagingInfo == null ? false : _pagingInfo!["more_available"];
+  String? get nextMaxId => moreAvailable ? _pagingInfo!["next_max_id"] : null;
+
+  void addEdges(Iterable<T> newItems) => items.addAll(newItems);
+  void updatePageInfo(Map<String, dynamic> newInfo) =>
+      _node["paging_info"] = newInfo;
 }
