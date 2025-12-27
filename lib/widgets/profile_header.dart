@@ -53,7 +53,7 @@ class _ProfileHeaderState extends State<ProfileHeader> {
               profilePicUrl,
               cacheKey: getCacheKey(profilePicUrl),
             ),
-            backgroundColor: theme.colorScheme.background,
+            backgroundColor: theme.colorScheme.surface,
             radius: 50,
           ),
         ),

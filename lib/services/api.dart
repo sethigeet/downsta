@@ -11,12 +11,15 @@ import 'package:downsta/helpers/helpers.dart';
 
 final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 final csrfTokenRegex = RegExp(
-    r'\["XIGSharedData", \[\], \{"raw": "\{\\"config\\":\{\\"csrf_token\\":\\"(.*)\\",\\"viewer');
+  r'\["XIGSharedData", \[\], \{"raw": "\{\\"config\\":\{\\"csrf_token\\":\\"(.*)\\",\\"viewer',
+);
 
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
   HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-  "X-IG-APP-ID": "936619743392459",
+  "X-IG-APP-ID": "124024574287414",
+  "X-BLOKS-VERSION-ID":
+      "16b7bd25c6c06886d57c4d455265669345a2d96625385b8ee30026ac2dc5ed97",
 };
 
 const acceptedPostTypes = ["GraphImage", "GraphVideo", "GraphSidecar"];
@@ -41,9 +44,9 @@ abstract class ApiUrls {
 
 abstract class ApiUserAgents {
   static const desktop =
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/92.0.4515.131 Safari/537.36";
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
   static const mobile =
-      "Instagram 146.0.0.27.125 (iPhone12,1; iOS 13_3; en_US; en-US; scale=2.00; 1656x3584; 190542906)";
+      "Instagram 361.0.0.35.82 (iPad13,8; iOS 18_0; en_US; en-US; scale=2.00; 2048x2732; 674117118) AppleWebKit/420";
 
   static String getUserAgentByHost(String host) {
     if (host.contains("www")) {
@@ -143,8 +146,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
 
     try {
-      final sessIdCookie =
-          cookies.firstWhere((cookie) => cookie.name == "sessionid");
+      final sessIdCookie = cookies.firstWhere(
+        (cookie) => cookie.name == "sessionid",
+      );
       if (sessIdCookie.value.isEmpty) {
         isLoggedIn = false;
         return false;
@@ -166,8 +170,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     req.headers.addAll({
       ...defaultHeaders,
       HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
-      HttpHeaders.cookieHeader:
-          CookieJar.getCookiesStringForHeaderFromCookies(cookies),
+      HttpHeaders.cookieHeader: CookieJar.getCookiesStringForHeaderFromCookies(
+        cookies,
+      ),
       "X-CSRFToken": _csrfToken,
     });
     var res = await client.send(req);
@@ -193,10 +198,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   Future<String?> login(String username, String password) async {
     isLoggedIn = null;
 
-    _csrfToken = await getCsrfTokenNew(
-      ApiUrls.csrfToken,
-      sendCookies: false,
-    );
+    _csrfToken = await getCsrfTokenNew(ApiUrls.csrfToken, sendCookies: false);
 
     sleep(const Duration(seconds: 1));
 
@@ -214,10 +216,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
         "X-CSRFToken": _csrfToken,
       },
-      body: {
-        "username": username,
-        "enc_password": encPassword,
-      },
+      body: {"username": username, "enc_password": encPassword},
       encoding: Encoding.getByName("json"),
     );
 
@@ -286,15 +285,18 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     var profile = Profile(res["data"]["user"]);
     userInfo[username] = profile;
 
-    await getPosts(username, force: true);
+    // await getPosts(username, force: true);
 
     notifyListeners();
 
     return profile;
   }
 
-  Future<PaginatedResponseV2<PostV2>> getPosts(String username,
-      {String? nextMaxId, bool force = false}) async {
+  Future<PaginatedResponseV2<PostV2>> getPosts(
+    String username, {
+    String? nextMaxId,
+    bool force = false,
+  }) async {
     var posts = cache.profiles[username]!.posts;
     if (nextMaxId == null && !force) {
       return posts;
@@ -309,7 +311,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       queryParameters: queryParameters,
     );
     posts.addEdges(
-        List<PostV2>.from((res["items"] as List).map((item) => PostV2(item))));
+      List<PostV2>.from((res["items"] as List).map((item) => PostV2(item))),
+    );
     posts.updatePageInfo({
       "next_max_id": res["next_max_id"],
       "more_available": res["more_available"],
@@ -341,10 +344,9 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       return postsInfo[shortCode];
     }
 
-    var res = await getGQLJson(
-      ApiQueryHashes.postInfo,
-      {"shortcode": shortCode},
-    );
+    var res = await getGQLJson(ApiQueryHashes.postInfo, {
+      "shortcode": shortCode,
+    });
     final info = res["data"]["shortcode_media"];
     postsInfo[shortCode] = info;
 
@@ -368,24 +370,21 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return profile.profilePicUrlHd;
   }
 
-  Future<String> getUserId(
-    String username, {
-    bool force = false,
-  }) async {
+  Future<String> getUserId(String username, {bool force = false}) async {
     var profile = cache.profiles[username];
     if (!force && profile != null) {
       return profile.id;
     }
 
-    var info = await getUserInfo(
-      username,
-      force: force,
-    );
+    var info = await getUserInfo(username, force: force);
     return info.id;
   }
 
-  Future<PaginatedResponse<Reel>> getReels(String username,
-      {String endCursor = "", bool force = false}) async {
+  Future<PaginatedResponse<Reel>> getReels(
+    String username, {
+    String endCursor = "",
+    bool force = false,
+  }) async {
     var reels = cache.reels;
     if (endCursor == "" && !force && reels[username] != null) {
       return reels[username]!;
@@ -404,7 +403,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     var reel = reels[username];
     if (reel != null) {
       reel.addEdges(
-          List<Reel>.from(res["items"].map((item) => Reel(item["media"]))));
+        List<Reel>.from(res["items"].map((item) => Reel(item["media"]))),
+      );
       var pagingInfo = res["paging_info"];
       reel.updatePageInfo({
         "has_next_page": pagingInfo["more_available"],
@@ -413,7 +413,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     } else {
       var temp = PaginatedResponse<Reel>.empty();
       temp.addEdges(
-          List<Reel>.from(res["items"].map((item) => Reel(item["media"]))));
+        List<Reel>.from(res["items"].map((item) => Reel(item["media"]))),
+      );
       var pagingInfo = res["paging_info"];
       temp.updatePageInfo({
         "has_next_page": pagingInfo["more_available"],
@@ -439,13 +440,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       res = await getJson(ApiUrls.recentSearches);
       res = {"users": res["recent"]};
     } else {
-      res = await getJson(
-        ApiUrls.search,
-        queryParameters: {"query": query},
-      );
+      res = await getJson(ApiUrls.search, queryParameters: {"query": query});
     }
     final users = List<Profile>.from(
-        (res["users"] ?? []).map((user) => Profile(user["user"])));
+      (res["users"] ?? []).map((user) => Profile(user["user"])),
+    );
     search[query] = users;
 
     notifyListeners();
@@ -465,9 +464,12 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       "precomposed_overlay": false,
     });
     final reelsMedia = res["data"]["reels_media"];
-    List<Story> data = reelsMedia.isEmpty
-        ? []
-        : List<Story>.from(reelsMedia[0]["items"].map((node) => Story(node)));
+    List<Story> data =
+        reelsMedia.isEmpty
+            ? []
+            : List<Story>.from(
+              reelsMedia[0]["items"].map((node) => Story(node)),
+            );
     stories[username] = data;
 
     notifyListeners();
@@ -475,27 +477,27 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return data;
   }
 
-  Future<List<Highlight>> getHighlights(String username,
-      {bool force = false}) async {
+  Future<List<Highlight>> getHighlights(
+    String username, {
+    bool force = false,
+  }) async {
     var highlights = cache.highlights;
     if (!force && highlights[username] != null) {
       return highlights[username]!;
     }
 
-    var res = await getGQLJson(
-      ApiQueryHashes.highlights,
-      {
-        "user_id": await getUserId(username),
-        "include_chaining": false,
-        "include_reel": false,
-        "include_suggested_users": false,
-        "include_logged_out_extras": false,
-        "include_highlight_reels": true
-      },
-    );
+    var res = await getGQLJson(ApiQueryHashes.highlights, {
+      "user_id": await getUserId(username),
+      "include_chaining": false,
+      "include_reel": false,
+      "include_suggested_users": false,
+      "include_logged_out_extras": false,
+      "include_highlight_reels": true,
+    });
     final edges = res["data"]["user"]["edge_highlight_reels"]["edges"];
-    final items =
-        List<Highlight>.from(edges.map((edge) => Highlight(edge["node"])));
+    final items = List<Highlight>.from(
+      edges.map((edge) => Highlight(edge["node"])),
+    );
     highlights[username] = items;
 
     notifyListeners();
@@ -503,26 +505,26 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return items;
   }
 
-  Future<List<Story>> getHighlightItems(String highlightId,
-      {bool force = false}) async {
+  Future<List<Story>> getHighlightItems(
+    String highlightId, {
+    bool force = false,
+  }) async {
     var highlightItems = cache.highlightItems;
     if (!force && highlightItems[highlightId] != null) {
       return highlightItems[highlightId]!;
     }
 
-    var res = await getGQLJson(
-      ApiQueryHashes.highlightItems,
-      {
-        "reel_ids": [],
-        "tag_names": [],
-        "location_ids": [],
-        "highlight_reel_ids": [highlightId],
-        "precomposed_overlay": false
-      },
-    );
+    var res = await getGQLJson(ApiQueryHashes.highlightItems, {
+      "reel_ids": [],
+      "tag_names": [],
+      "location_ids": [],
+      "highlight_reel_ids": [highlightId],
+      "precomposed_overlay": false,
+    });
     final reelsMedia = res["data"]["reels_media"][0];
-    List<Story> items =
-        List<Story>.from(reelsMedia["items"].map((node) => Story(node)));
+    List<Story> items = List<Story>.from(
+      reelsMedia["items"].map((node) => Story(node)),
+    );
     highlightItems[highlightId] = items;
 
     notifyListeners();
@@ -530,16 +532,17 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return items;
   }
 
-  Future<PaginatedResponse<T>> get<T>(
-      {required String queryHash,
-      required Map<String, dynamic> params,
-      required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
-      required PaginatedResponse<T>? Function(Cache) cacheExtractor,
-      required T? Function(Map<String, dynamic>) nodeConverter,
-      bool initial = false,
-      void Function(Cache)? cacheInitializer,
-      bool force = false,
-      String referer = "https://www.instagram.com/"}) async {
+  Future<PaginatedResponse<T>> get<T>({
+    required String queryHash,
+    required Map<String, dynamic> params,
+    required Map<String, dynamic> Function(Map<String, dynamic>) resExtractor,
+    required PaginatedResponse<T>? Function(Cache) cacheExtractor,
+    required T? Function(Map<String, dynamic>) nodeConverter,
+    bool initial = false,
+    void Function(Cache)? cacheInitializer,
+    bool force = false,
+    String referer = "https://www.instagram.com/",
+  }) async {
     if (initial) {
       var oldData = cacheExtractor(cache);
       if (!force && oldData != null) {
@@ -548,7 +551,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
       if (cacheInitializer == null) {
         throw ErrorHint(
-            "cacheInitializer cannot be null if this is the initial request and there is no cached data available!");
+          "cacheInitializer cannot be null if this is the initial request and there is no cached data available!",
+        );
       }
       return get<T>(
         queryHash: queryHash,
@@ -562,42 +566,52 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       );
     }
 
-    var res = await getGQLJson(
-      queryHash,
-      {"first": 25, ...params},
-      referer: referer,
-    );
+    var res = await getGQLJson(queryHash, {
+      "first": 25,
+      ...params,
+    }, referer: referer);
     var newData = resExtractor(res["data"]);
     var oldData = cacheExtractor(cache);
     if (oldData == null) {
       throw ErrorHint(
-          "cached data cannot be null if this is not the initial request");
+        "cached data cannot be null if this is not the initial request",
+      );
     }
     oldData.updatePageInfo(newData["page_info"]);
-    oldData.addEdges(List<T>.from((newData["edges"] as List)
-        .map((edge) => nodeConverter(edge["node"]))
-        .where((node) => node != null)));
+    oldData.addEdges(
+      List<T>.from(
+        (newData["edges"] as List)
+            .map((edge) => nodeConverter(edge["node"]))
+            .where((node) => node != null),
+      ),
+    );
 
     notifyListeners();
 
     return oldData;
   }
 
-  Future<dynamic> getJson(String path,
-      {String host = "www.instagram.com",
-      Map<String, dynamic>? queryParameters}) async {
+  Future<dynamic> getJson(
+    String path, {
+    String host = "www.instagram.com",
+    Map<String, dynamic>? queryParameters,
+  }) async {
     var uri = Uri(
-        scheme: "https",
-        host: host,
-        path: path,
-        queryParameters: queryParameters);
+      scheme: "https",
+      host: host,
+      path: path,
+      queryParameters: queryParameters,
+    );
 
-    var res = await client.get(uri, headers: {
-      ...defaultHeaders,
-      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
-      "X-CSRFToken": _csrfToken,
-    });
+    var res = await client.get(
+      uri,
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        "X-CSRFToken": _csrfToken,
+      },
+    );
 
     // TODO: Figure out whether we need to save the cookies here or not
     // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
@@ -605,13 +619,12 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return jsonDecode(res.body);
   }
 
-  Future<dynamic> postJson(String path,
-      {String host = "www.instagram.com", Map<String, dynamic>? body}) async {
-    var uri = Uri(
-      scheme: "https",
-      host: host,
-      path: path,
-    );
+  Future<dynamic> postJson(
+    String path, {
+    String host = "www.instagram.com",
+    Map<String, dynamic>? body,
+  }) async {
+    var uri = Uri(scheme: "https", host: host, path: path);
 
     var res = await client.post(
       uri,
@@ -630,33 +643,45 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return jsonDecode(res.body);
   }
 
-  Future<dynamic> getMobileJson(String path,
-      {Map<String, dynamic>? queryParameters}) {
-    return getJson(path,
-        host: "i.instagram.com", queryParameters: queryParameters);
+  Future<dynamic> getMobileJson(
+    String path, {
+    Map<String, dynamic>? queryParameters,
+  }) {
+    return getJson(
+      path,
+      host: "i.instagram.com",
+      queryParameters: queryParameters,
+    );
   }
 
   Future<dynamic> postMobileJson(String path, {Map<String, dynamic>? body}) {
     return postJson(path, host: "i.instagram.com", body: body);
   }
 
-  Future<dynamic> getCsrfTokenNew(String path,
-      {String host = "www.instagram.com",
-      Map<String, dynamic>? queryParameters,
-      bool? sendCookies}) async {
+  Future<dynamic> getCsrfTokenNew(
+    String path, {
+    String host = "www.instagram.com",
+    Map<String, dynamic>? queryParameters,
+    bool? sendCookies,
+  }) async {
     var uri = Uri(
-        scheme: "https",
-        host: host,
-        path: path,
-        queryParameters: queryParameters);
+      scheme: "https",
+      host: host,
+      path: path,
+      queryParameters: queryParameters,
+    );
 
-    var res = await client.get(uri, headers: {
-      ...defaultHeaders,
-      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-      HttpHeaders.cookieHeader: sendCookies != null && sendCookies
-          ? await cookieJar.getCookiesForHeader(uri)
-          : "",
-    });
+    var res = await client.get(
+      uri,
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.cookieHeader:
+            sendCookies != null && sendCookies
+                ? await cookieJar.getCookiesForHeader(uri)
+                : "",
+      },
+    );
 
     final match = windowSharedDataRegex.firstMatch(res.body);
     if (match != null) {
@@ -674,22 +699,26 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     String referer = "www.instagram.com",
   }) async {
     var uri = Uri(
-        scheme: "https",
-        host: host,
-        path: "graphql/query",
-        queryParameters: {
-          "query_hash": queryHash,
-          "variables": jsonEncode(variables)
-        });
+      scheme: "https",
+      host: host,
+      path: "graphql/query",
+      queryParameters: {
+        "query_hash": queryHash,
+        "variables": jsonEncode(variables),
+      },
+    );
 
-    var res = await client.get(uri, headers: {
-      ...defaultHeaders,
-      HttpHeaders.refererHeader: referer,
-      HttpHeaders.acceptHeader: "*/*",
-      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
-      "X-CSRFToken": _csrfToken,
-    });
+    var res = await client.get(
+      uri,
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.refererHeader: referer,
+        HttpHeaders.acceptHeader: "*/*",
+        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        "X-CSRFToken": _csrfToken,
+      },
+    );
 
     // TODO: Figure out whether we need to save the cookies here or not
     // cookieJar.saveCookies(uri, res.headers["set-cookie"]);

@@ -22,8 +22,8 @@ class DownloadedStatus extends StatelessWidget {
 
     final showCheck = toBeDownloaded || alreadyDownloaded;
     final bgColor = alreadyDownloaded
-        ? Colors.grey.shade600.withOpacity(0.6)
-        : primaryBg.withOpacity(0.6);
+        ? Colors.grey.shade600.withValues(alpha: 0.6)
+        : primaryBg.withValues(alpha: 0.6);
 
     final fgColor = alreadyDownloaded ? Colors.black54 : primaryFg;
 

@@ -124,7 +124,8 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
+                  splashColor:
+                      theme.colorScheme.onPrimary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(25),
                   onLongPress: () async {
                     final currIdx = (_pageController.page ?? 0).floor();
@@ -329,7 +330,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                     activeIndex = index;
                   }),
                   backgroundDecoration:
-                      BoxDecoration(color: theme.colorScheme.background),
+                      BoxDecoration(color: theme.colorScheme.surface),
                   builder: (context, index) {
                     final url = images[index];
                     final coverImgUrl = coverImages[index];

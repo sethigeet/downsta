@@ -159,7 +159,7 @@ class _PostCardState extends State<PostCard> {
                       onPageChanged: (index) =>
                           setState(() => activeIndex = index),
                       backgroundDecoration:
-                          BoxDecoration(color: theme.colorScheme.background),
+                          BoxDecoration(color: theme.colorScheme.surface),
                       builder: (context, index) {
                         final url = urls[index];
                         final coverImgUrl = coverImgUrls[index];

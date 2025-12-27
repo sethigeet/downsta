@@ -184,7 +184,7 @@ class MyDrawer extends StatelessWidget {
                     user.profilePicUrl,
                     cacheKey: getCacheKey(user.profilePicUrl),
                   ),
-                  backgroundColor: theme.colorScheme.background,
+                  backgroundColor: theme.colorScheme.surface,
                   radius: 35,
                 ),
                 const SizedBox(height: 15),
