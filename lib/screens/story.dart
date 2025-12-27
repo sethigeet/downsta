@@ -116,7 +116,8 @@ class _StoryScreenState extends State<StoryScreen>
               child: Material(
                 color: Colors.transparent,
                 child: InkWell(
-                  splashColor: theme.colorScheme.onPrimary.withOpacity(0.3),
+                  splashColor:
+                      theme.colorScheme.onPrimary.withValues(alpha: 0.3),
                   borderRadius: BorderRadius.circular(25),
                   onLongPress: () async {
                     final toDownload = await showModalBottomSheet<List<String>>(
