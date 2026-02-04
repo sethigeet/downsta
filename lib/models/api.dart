@@ -178,7 +178,18 @@ class Reel extends Video {
   Reel(super.node);
 
   @override
-  String get displayUrl => _node["image_versions2"]["candidates"].last["url"];
+  String get displayUrl {
+    var bestCandidate = _node["image_versions2"]["candidates"].first;
+    var maxSize = bestCandidate["width"] * bestCandidate["height"];
+    for (var candidate in _node["image_versions2"]["candidates"]) {
+      var size = candidate["width"] * candidate["height"];
+      if (size > maxSize) {
+        bestCandidate = candidate;
+        maxSize = size;
+      }
+    }
+    return bestCandidate["url"];
+  }
 }
 
 class PaginatedResponse<T> {

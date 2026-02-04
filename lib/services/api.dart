@@ -62,12 +62,16 @@ abstract class ApiQueryHashes {
   static const feed = "d6f4427fbe92d846298cf93df0b937d3";
   static const following = "58712303d941c6855d4e888c5f0cd22f";
   static const posts = "003056d32c2554def87228bc3fd9668a";
-  static const postsDocId = "7898261790222653";
   static const stories = "303a4ae99711322310f25250d988f3b7";
   static const videos = "bc78b344a68ed16dd5d7f264681c4c76";
   static const postInfo = "2b0673e0dc4580674a88d426fe00ea90";
   static const highlights = "7c16654f22c819fb63d1183034a5162f";
   static const highlightItems = "45246d3fe16ccc6577e0bd297a5db1ab";
+}
+
+abstract class ApiDocIds {
+  static const posts = "7898261790222653";
+  static const reels = "7845543455542541";
 }
 
 class Cache with DiagnosticableTreeMixin {
@@ -176,11 +180,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       ),
       "X-CSRFToken": _csrfToken,
     });
-    // var res = await client.send(req);
-    // if (res.isRedirect) {
-    //   isLoggedIn = false;
-    //   return false;
-    // }
+    var res = await client.send(req);
+    if (res.isRedirect) {
+      isLoggedIn = false;
+      return false;
+    }
 
     isLoggedIn = true;
     return true;
@@ -326,8 +330,8 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       variables["first"] = 12;
       variables["last"] = null;
     }
-    var res = await getDocIdJson(
-      ApiQueryHashes.postsDocId,
+    var res = await postDocIdJson(
+      ApiDocIds.posts,
       variables,
       referer: "https://www.instagram.com/$username/",
     );
@@ -413,47 +417,42 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
   Future<PaginatedResponse<Reel>> getReels(
     String username, {
-    String endCursor = "",
+    String? endCursor,
     bool force = false,
   }) async {
     var reels = cache.reels;
-    if (endCursor == "" && !force && reels[username] != null) {
+    if (endCursor == null && !force && reels[username] != null) {
       return reels[username]!;
     }
 
-    var res = await postMobileJson(
-      ApiUrls.reels,
-      body: {
+    Map<String, dynamic> variables = {
+      "data": {
+        "page_size": 12,
         "target_user_id": await getUserId(username),
-        "page_size": "12",
-        "max_id": endCursor,
-        "include_feed_video": "false",
+        "include_feed_video": true,
       },
+      "__relay_internal__pv__PolarisFeedShareMenurelayprovider": false,
+    };
+    if (endCursor != null) {
+      variables["after"] = endCursor;
+      variables["before"] = null;
+      variables["first"] = 12;
+      variables["last"] = null;
+    }
+    var res = await postDocIdJson(
+      ApiDocIds.reels,
+      variables,
+      referer: "https://www.instagram.com/$username/",
     );
+    res = res["data"]["xdt_api__v1__clips__user__connection_v2"];
 
     var reel = reels[username];
-    if (reel != null) {
-      reel.addEdges(
-        List<Reel>.from(res["items"].map((item) => Reel(item["media"]))),
-      );
-      var pagingInfo = res["paging_info"];
-      reel.updatePageInfo({
-        "has_next_page": pagingInfo["more_available"],
-        "end_cursor": pagingInfo["max_id"],
-      });
-    } else {
-      var temp = PaginatedResponse<Reel>.empty();
-      temp.addEdges(
-        List<Reel>.from(res["items"].map((item) => Reel(item["media"]))),
-      );
-      var pagingInfo = res["paging_info"];
-      temp.updatePageInfo({
-        "has_next_page": pagingInfo["more_available"],
-        "end_cursor": pagingInfo["max_id"],
-      });
-
-      reels[username] = temp;
-    }
+    reel ??= PaginatedResponse<Reel>.empty();
+    reel.addEdges(
+      List<Reel>.from(res["edges"].map((item) => Reel(item["node"]["media"]))),
+    );
+    reel.updatePageInfo(res["page_info"]);
+    reels[username] = reel;
 
     notifyListeners();
 
@@ -757,7 +756,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return jsonDecode(res.body);
   }
 
-  Future<dynamic> getDocIdJson(
+  Future<dynamic> postDocIdJson(
     String docId,
     Map<String, dynamic> variables, {
     String host = "www.instagram.com",
