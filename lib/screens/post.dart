@@ -24,11 +24,7 @@ class PostScreenArguments {
   int? index;
   String username;
 
-  PostScreenArguments({
-    required this.post,
-    this.index,
-    required this.username,
-  });
+  PostScreenArguments({required this.post, this.index, required this.username});
 }
 
 class PostScreen extends StatefulWidget {
@@ -64,8 +60,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
     _photoController.dispose();
 
     // reset the display state
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
 
     super.dispose();
   }
@@ -114,90 +112,114 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
         ),
       ),
       extendBodyBehindAppBar: true,
-      floatingActionButton: _currentOpacity == 1
-          ? Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 25),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  splashColor:
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.3),
+      floatingActionButton:
+          _currentOpacity == 1
+              ? Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(25),
-                  onLongPress: () async {
-                    final currIdx = (_pageController.page ?? 0).floor();
-                    final currUrl = images[currIdx];
-                    final toDownload = await showModalBottomSheet<List<String>>(
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 25),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    splashColor: theme.colorScheme.onPrimary.withValues(
+                      alpha: 0.3,
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                    onLongPress: () async {
+                      final currIdx = (_pageController.page ?? 0).floor();
+                      final currUrl = images[currIdx];
+                      final toDownload = await showModalBottomSheet<
+                        List<String>
+                      >(
                         context: context,
                         builder: (context) {
                           return SizedBox(
                             height: (currUrl.contains(".mp4")) ? 150 : 100,
-                            child: Column(children: [
-                              ListTile(
-                                onTap: () => Navigator.pop(context, [currUrl]),
-                                title: currUrl.contains(".mp4")
-                                    ? const Text("Download current video")
-                                    : const Text("Download current image"),
-                                leading: currUrl.contains(".mp4")
-                                    ? const Icon(Icons.video_file_rounded)
-                                    : const Icon(Icons.image),
-                              ),
-                              if (currUrl.contains(".mp4"))
+                            child: Column(
+                              children: [
                                 ListTile(
-                                  onTap: () => Navigator.pop(
-                                      context, [coverImages[currIdx]]),
-                                  title: const Text("Download cover image"),
-                                  leading: const Icon(Icons.image),
+                                  onTap:
+                                      () => Navigator.pop(context, [currUrl]),
+                                  title:
+                                      currUrl.contains(".mp4")
+                                          ? const Text("Download current video")
+                                          : const Text(
+                                            "Download current image",
+                                          ),
+                                  leading:
+                                      currUrl.contains(".mp4")
+                                          ? const Icon(Icons.video_file_rounded)
+                                          : const Icon(Icons.image),
                                 ),
-                              ListTile(
+                                if (currUrl.contains(".mp4"))
+                                  ListTile(
+                                    onTap:
+                                        () => Navigator.pop(context, [
+                                          coverImages[currIdx],
+                                        ]),
+                                    title: const Text("Download cover image"),
+                                    leading: const Icon(Icons.image),
+                                  ),
+                                ListTile(
                                   onTap: () => Navigator.pop(context, images),
                                   title: const Text("Download entire post"),
-                                  leading: const Icon(Icons.collections)),
-                            ]),
+                                  leading: const Icon(Icons.collections),
+                                ),
+                              ],
+                            ),
                           );
-                        });
-
-                    if (toDownload != null) {
-                      if (toDownload.length > 1) {
-                        db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: post.id,
-                          coverImgBytes: Value(
-                              await downloader.getImgBytes(post.displayUrl)),
-                          imgUrls: images.join(","),
-                          username: username,
-                        ));
-                      }
-                      downloader.download(toDownload, username);
-                    }
-                  },
-                  onTap: alreadyDownloaded
-                      ? null
-                      : () async {
-                          downloader.download(images, username);
-                          db.saveItemToHistory(HistoryItemsCompanion.insert(
-                            postId: post.id,
-                            coverImgBytes: Value(
-                                await downloader.getImgBytes(post.displayUrl)),
-                            imgUrls: images.join(","),
-                            username: username,
-                          ));
                         },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      alreadyDownloaded
-                          ? Icons.download_done_rounded
-                          : Icons.download,
-                      color: theme.colorScheme.onPrimary,
+                      );
+
+                      if (toDownload != null) {
+                        if (toDownload.length > 1) {
+                          db.saveItemToHistory(
+                            HistoryItemsCompanion.insert(
+                              postId: post.id,
+                              coverImgBytes: Value(
+                                await downloader.getImgBytes(post.displayUrl),
+                              ),
+                              imgUrls: images.join(","),
+                              username: username,
+                            ),
+                          );
+                        }
+                        downloader.download(toDownload, username);
+                      }
+                    },
+                    onTap:
+                        alreadyDownloaded
+                            ? null
+                            : () async {
+                              downloader.download(images, username);
+                              db.saveItemToHistory(
+                                HistoryItemsCompanion.insert(
+                                  postId: post.id,
+                                  coverImgBytes: Value(
+                                    await downloader.getImgBytes(
+                                      post.displayUrl,
+                                    ),
+                                  ),
+                                  imgUrls: images.join(","),
+                                  username: username,
+                                ),
+                              );
+                            },
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        alreadyDownloaded
+                            ? Icons.download_done_rounded
+                            : Icons.download,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            )
-          : null,
+              )
+              : null,
       body: GestureDetector(
         onTap: () {
           if (_currentOpacity > 0) {
@@ -205,8 +227,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
             SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
           } else {
             setState(() => _currentOpacity = 1);
-            SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-                overlays: SystemUiOverlay.values);
+            SystemChrome.setEnabledSystemUIMode(
+              SystemUiMode.manual,
+              overlays: SystemUiOverlay.values,
+            );
           }
         },
         child: Stack(
@@ -217,7 +241,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
               onKeyEvent: (event) {
                 if (index != null) {
                   if (event.character == "n") {
-                    var posts = userInfo!.posts.items;
+                    var posts = userInfo!.posts.edges;
                     if (index == posts.length - 1) {
                       return;
                     }
@@ -234,7 +258,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
 
                     return;
                   } else if (event.character == "p") {
-                    var posts = userInfo!.posts.items;
+                    var posts = userInfo!.posts.edges;
                     if (index == 0) {
                       return;
                     }
@@ -273,11 +297,17 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                 );
 
                 if (event is KeyDownEvent) {
-                  setState(() => _isCtrlPressed =
-                      event.logicalKey == LogicalKeyboardKey.controlLeft);
+                  setState(
+                    () =>
+                        _isCtrlPressed =
+                            event.logicalKey == LogicalKeyboardKey.controlLeft,
+                  );
                 } else if (event is KeyUpEvent) {
-                  setState(() => _isCtrlPressed =
-                      event.logicalKey != LogicalKeyboardKey.controlLeft);
+                  setState(
+                    () =>
+                        _isCtrlPressed =
+                            event.logicalKey != LogicalKeyboardKey.controlLeft,
+                  );
                 }
               },
               child: Listener(
@@ -288,8 +318,10 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                         event.kind == PointerDeviceKind.mouse) {
                       // for some reason, the delta is the opposite of what is obvious
                       final double delta = (event.scrollDelta.dy * -1) / 1000;
-                      double newScale =
-                          max(0, min((_photoController.scale ?? 1) + delta, 4));
+                      double newScale = max(
+                        0,
+                        min((_photoController.scale ?? 1) + delta, 4),
+                      );
                       _photoController.setScaleInvisibly(newScale);
                     }
 
@@ -317,20 +349,24 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                   if (!_keyboardScrollFocusNode.hasFocus &&
                       event.kind == PointerDeviceKind.mouse) {
                     // Request focus in order to be able to use keyboard keys
-                    FocusScope.of(context)
-                        .requestFocus(_keyboardScrollFocusNode);
+                    FocusScope.of(
+                      context,
+                    ).requestFocus(_keyboardScrollFocusNode);
                   }
                 },
                 child: PhotoViewGallery.builder(
                   itemCount: images.length,
                   scrollPhysics: const BouncingScrollPhysics(
-                      parent: AlwaysScrollableScrollPhysics()),
+                    parent: AlwaysScrollableScrollPhysics(),
+                  ),
                   pageController: _pageController,
-                  onPageChanged: (index) => setState(() {
-                    activeIndex = index;
-                  }),
-                  backgroundDecoration:
-                      BoxDecoration(color: theme.colorScheme.surface),
+                  onPageChanged:
+                      (index) => setState(() {
+                        activeIndex = index;
+                      }),
+                  backgroundDecoration: BoxDecoration(
+                    color: theme.colorScheme.surface,
+                  ),
                   builder: (context, index) {
                     final url = images[index];
                     final coverImgUrl = coverImages[index];
@@ -339,17 +375,21 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                         initializePlayer(url, coverImgUrl);
                       }
                       return PhotoViewGalleryPageOptions.customChild(
-                        child: _chewieController == null
-                            ? buildLoadingWidget(coverImgUrl)
-                            : !_chewieController!
-                                    .videoPlayerController.value.isInitialized
+                        child:
+                            _chewieController == null
+                                ? buildLoadingWidget(coverImgUrl)
+                                : !_chewieController!
+                                    .videoPlayerController
+                                    .value
+                                    .isInitialized
                                 ? buildLoadingWidget(coverImgUrl)
                                 : Chewie(controller: _chewieController!),
                         controller: _photoController,
                         minScale: PhotoViewComputedScale.contained,
                         maxScale: PhotoViewComputedScale.covered * 4,
-                        heroAttributes:
-                            PhotoViewHeroAttributes(tag: "post-${post.id}"),
+                        heroAttributes: PhotoViewHeroAttributes(
+                          tag: "post-${post.id}",
+                        ),
                       );
                     }
 
@@ -357,33 +397,40 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                       controller: _photoController,
                       minScale: PhotoViewComputedScale.contained,
                       maxScale: PhotoViewComputedScale.covered * 4,
-                      imageProvider: CachedNetworkImageProvider(url,
-                          cacheKey: getCacheKey(url)),
+                      imageProvider: CachedNetworkImageProvider(
+                        url,
+                        cacheKey: getCacheKey(url),
+                      ),
                       initialScale: PhotoViewComputedScale.contained,
-                      errorBuilder: (context, error, _) => const Center(
+                      errorBuilder:
+                          (context, error, _) => const Center(
+                            child: SizedBox(
+                              width: 25,
+                              height: 25,
+                              child: Icon(Icons.error),
+                            ),
+                          ),
+                      heroAttributes: PhotoViewHeroAttributes(
+                        tag: "post-${post.id}",
+                      ),
+                    );
+                  },
+                  loadingBuilder:
+                      (context, event) => Center(
                         child: SizedBox(
                           width: 25,
                           height: 25,
-                          child: Icon(Icons.error),
+                          child: CircularProgressIndicator(
+                            value:
+                                (event == null ||
+                                        event.expectedTotalBytes == null)
+                                    ? null
+                                    : event.cumulativeBytesLoaded /
+                                        event
+                                            .expectedTotalBytes!, // why does dart think that I am not checking expectedTotalBytes to be null 2 lines above??)),
+                          ),
                         ),
                       ),
-                      heroAttributes:
-                          PhotoViewHeroAttributes(tag: "post-${post.id}"),
-                    );
-                  },
-                  loadingBuilder: (context, event) => Center(
-                    child: SizedBox(
-                        width: 25,
-                        height: 25,
-                        child: CircularProgressIndicator(
-                          value: (event == null ||
-                                  event.expectedTotalBytes == null)
-                              ? null
-                              : event.cumulativeBytesLoaded /
-                                  event
-                                      .expectedTotalBytes!, // why does dart think that I am not checking expectedTotalBytes to be null 2 lines above??)),
-                        )),
-                  ),
                 ),
               ),
             ),
@@ -411,11 +458,12 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
         dotColor: Colors.grey.shade800,
         activeDotColor: Colors.deepPurple.shade900,
       ),
-      onDotClicked: (index) => _pageController.animateToPage(
-        index,
-        duration: _animationDuration,
-        curve: Curves.easeInOut,
-      ),
+      onDotClicked:
+          (index) => _pageController.animateToPage(
+            index,
+            duration: _animationDuration,
+            curve: Curves.easeInOut,
+          ),
     );
   }
 

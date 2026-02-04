@@ -71,88 +71,86 @@ class _LoginScreenState extends State<LoginScreen> {
 
     return Scaffold(
       body: Center(
-          child: Container(
-        constraints: BoxConstraints(
-          maxHeight: screenSize.height * 0.6,
-          maxWidth: screenSize.width * 0.75,
-        ),
-        child: Form(
-          key: _formKey,
-          autovalidateMode: AutovalidateMode.onUserInteraction,
-          child: Column(
-            children: [
-              Image.asset(
-                "assets/icon.png",
-                height: 100,
-                width: 100,
-                fit: BoxFit.cover,
-              ),
-              Text(
-                "Login",
-                style: TextStyle(
-                  fontSize: 35,
-                  fontWeight: FontWeight.bold,
-                  color: Theme.of(context).colorScheme.primary,
+        child: Container(
+          constraints: BoxConstraints(
+            maxHeight: screenSize.height * 0.6,
+            maxWidth: screenSize.width * 0.75,
+          ),
+          child: Form(
+            key: _formKey,
+            autovalidateMode: AutovalidateMode.onUserInteraction,
+            child: Column(
+              children: [
+                Image.asset(
+                  "assets/icon.png",
+                  height: 100,
+                  width: 100,
+                  fit: BoxFit.cover,
                 ),
-              ),
-              const SizedBox(height: 20),
-              const Row(
-                children: [
-                  Icon(Icons.person, size: 15),
-                  SizedBox(width: 5),
-                  Text("Username", style: TextStyle(fontSize: 15)),
-                ],
-              ),
-              TextFormField(
-                controller: _usernameFieldController,
-                decoration: const InputDecoration(
-                  hintText: "Enter your username",
+                Text(
+                  "Login",
+                  style: TextStyle(
+                    fontSize: 35,
+                    fontWeight: FontWeight.bold,
+                    color: Theme.of(context).colorScheme.primary,
+                  ),
                 ),
-                validator: (String? value) {
-                  if (value == null || value.isEmpty) {
-                    return "Username is required!";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              const Row(
-                children: [
-                  Icon(Icons.lock, size: 15),
-                  SizedBox(width: 5),
-                  Text("Password", style: TextStyle(fontSize: 15)),
-                ],
-              ),
-              TextFormField(
-                controller: _passwordFieldController,
-                decoration: const InputDecoration(
-                  hintText: "Enter your password",
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Icon(Icons.person, size: 15),
+                    SizedBox(width: 5),
+                    Text("Username", style: TextStyle(fontSize: 15)),
+                  ],
                 ),
-                obscureText: true,
-                validator: (String? value) {
-                  if (value == null || value.isEmpty) {
-                    return "Password is required!";
-                  }
-                  return null;
-                },
-              ),
-              const SizedBox(height: 20),
-              ElevatedButton.icon(
-                onPressed: handleLogin,
-                icon: const Icon(
-                  Icons.arrow_right_rounded,
-                  size: 25,
+                TextFormField(
+                  controller: _usernameFieldController,
+                  decoration: const InputDecoration(
+                    hintText: "Enter your username",
+                  ),
+                  validator: (String? value) {
+                    if (value == null || value.isEmpty) {
+                      return "Username is required!";
+                    }
+                    return null;
+                  },
                 ),
-                label: const Text("Submit"),
-                style: ElevatedButton.styleFrom(
-                  elevation: 0,
-                  textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                const SizedBox(height: 20),
+                const Row(
+                  children: [
+                    Icon(Icons.lock, size: 15),
+                    SizedBox(width: 5),
+                    Text("Password", style: TextStyle(fontSize: 15)),
+                  ],
                 ),
-              )
-            ],
+                TextFormField(
+                  controller: _passwordFieldController,
+                  decoration: const InputDecoration(
+                    hintText: "Enter your password",
+                  ),
+                  obscureText: true,
+                  validator: (String? value) {
+                    if (value == null || value.isEmpty) {
+                      return "Password is required!";
+                    }
+                    return null;
+                  },
+                ),
+                const SizedBox(height: 20),
+                ElevatedButton.icon(
+                  onPressed: handleLogin,
+                  icon: const Icon(Icons.arrow_right_rounded, size: 25),
+                  label: const Text("Submit"),
+                  style: ElevatedButton.styleFrom(
+                    elevation: 0,
+                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
+                  ),
+                ),
+              ],
+            ),
           ),
         ),
-      )),
+      ),
     );
   }
 
@@ -171,26 +169,24 @@ class _LoginScreenState extends State<LoginScreen> {
 
     final api = Provider.of<Api>(context, listen: false);
     final res = await api.login(
-        _usernameFieldController.text, _passwordFieldController.text);
+      _usernameFieldController.text,
+      _passwordFieldController.text,
+    );
     snackbarController.close();
     if (res == null) {
       gotoHomeScreen();
       return;
     }
 
-    // ignore: use_build_context_synchronously
     showDialog<void>(
+      // ignore: use_build_context_synchronously
       context: context,
       barrierDismissible: false,
       builder: (BuildContext context) {
         return AlertDialog(
           title: const Text("Login error!"),
           content: SingleChildScrollView(
-            child: ListBody(
-              children: [
-                Text(res),
-              ],
-            ),
+            child: ListBody(children: [Text(res)]),
           ),
           actions: <Widget>[
             TextButton(

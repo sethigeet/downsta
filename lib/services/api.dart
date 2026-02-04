@@ -13,11 +13,12 @@ final windowSharedDataRegex = RegExp(r"window\._sharedData = (.*);</script>");
 final csrfTokenRegex = RegExp(
   r'\["XIGSharedData", \[\], \{"raw": "\{\\"config\\":\{\\"csrf_token\\":\\"(.*)\\",\\"viewer',
 );
+final userIdRegex = RegExp(r'"profile_id":"(\d+)"');
 
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
   HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
-  "X-IG-APP-ID": "124024574287414",
+  "X-IG-APP-ID": "936619743392459",
   "X-BLOKS-VERSION-ID":
       "16b7bd25c6c06886d57c4d455265669345a2d96625385b8ee30026ac2dc5ed97",
 };
@@ -44,7 +45,7 @@ abstract class ApiUrls {
 
 abstract class ApiUserAgents {
   static const desktop =
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/133.0.0.0 Safari/537.36";
+      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
   static const mobile =
       "Instagram 361.0.0.35.82 (iPad13,8; iOS 18_0; en_US; en-US; scale=2.00; 2048x2732; 674117118) AppleWebKit/420";
 
@@ -61,6 +62,7 @@ abstract class ApiQueryHashes {
   static const feed = "d6f4427fbe92d846298cf93df0b937d3";
   static const following = "58712303d941c6855d4e888c5f0cd22f";
   static const posts = "003056d32c2554def87228bc3fd9668a";
+  static const postsDocId = "7898261790222653";
   static const stories = "303a4ae99711322310f25250d988f3b7";
   static const videos = "bc78b344a68ed16dd5d7f264681c4c76";
   static const postInfo = "2b0673e0dc4580674a88d426fe00ea90";
@@ -159,8 +161,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
 
     try {
-      _csrfToken =
-          cookies.firstWhere((cookie) => cookie.name == "csrftoken").value;
+      _csrfToken = await getCsrfTokenNew(ApiUrls.csrfToken, sendCookies: false);
     } catch (_) {
       isLoggedIn = false;
       return false;
@@ -175,11 +176,11 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       ),
       "X-CSRFToken": _csrfToken,
     });
-    var res = await client.send(req);
-    if (res.isRedirect) {
-      isLoggedIn = false;
-      return false;
-    }
+    // var res = await client.send(req);
+    // if (res.isRedirect) {
+    //   isLoggedIn = false;
+    //   return false;
+    // }
 
     isLoggedIn = true;
     return true;
@@ -200,6 +201,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
     _csrfToken = await getCsrfTokenNew(ApiUrls.csrfToken, sendCookies: false);
 
+    // Sleep to avoid rate limiting
     sleep(const Duration(seconds: 1));
 
     final encPassword =
@@ -278,21 +280,27 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       return userInfo[username]!;
     }
 
+    // var res = await getMobileJson(
+    //   ApiUrls.userInfo,
+    //   queryParameters: {"username": username},
+    // );
+    // var profile = Profile(res["data"]["user"]);
+
     var res = await getMobileJson(
-      ApiUrls.userInfo,
-      queryParameters: {"username": username},
+      ApiUrls.userInfo2.replaceAll("{USERID}", await getUserId(username)),
     );
-    var profile = Profile(res["data"]["user"]);
+    var info = res["user"];
+    var profile = Profile(info);
     userInfo[username] = profile;
 
-    // await getPosts(username, force: true);
+    await getPosts(username, force: true);
 
     notifyListeners();
 
     return profile;
   }
 
-  Future<PaginatedResponseV2<PostV2>> getPosts(
+  Future<PaginatedResponse<PostV2>> getPosts(
     String username, {
     String? nextMaxId,
     bool force = false,
@@ -302,21 +310,34 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       return posts;
     }
 
-    Map<String, dynamic> queryParameters = {"count": "12"};
+    Map<String, dynamic> variables = {
+      "data": {
+        "count": 12,
+        "include_relationship_info": true,
+        "latest_besties_reel_media": true,
+        "latest_reel_media": true,
+      },
+      "username": username,
+      "__relay_internal__pv__PolarisFeedShareMenurelayprovider": false,
+    };
     if (nextMaxId != null) {
-      queryParameters["max_id"] = nextMaxId;
+      variables["after"] = nextMaxId;
+      variables["before"] = null;
+      variables["first"] = 12;
+      variables["last"] = null;
     }
-    var res = await getJson(
-      ApiUrls.posts.replaceAll("{USERNAME}", username),
-      queryParameters: queryParameters,
+    var res = await getDocIdJson(
+      ApiQueryHashes.postsDocId,
+      variables,
+      referer: "https://www.instagram.com/$username/",
     );
+    res = res["data"]["xdt_api__v1__feed__user_timeline_graphql_connection"];
     posts.addEdges(
-      List<PostV2>.from((res["items"] as List).map((item) => PostV2(item))),
+      List<PostV2>.from(
+        (res["edges"] as List).map((item) => PostV2(item["node"])),
+      ),
     );
-    posts.updatePageInfo({
-      "next_max_id": res["next_max_id"],
-      "more_available": res["more_available"],
-    });
+    posts.updatePageInfo(res["page_info"] as Map<String, dynamic>);
 
     notifyListeners();
 
@@ -376,8 +397,18 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       return profile.id;
     }
 
-    var info = await getUserInfo(username, force: force);
-    return info.id;
+    // var info = await getUserInfo(username, force: force);
+    // return info.id;
+
+    var res = await client.get(
+      Uri(scheme: "https", host: "www.instagram.com", path: username),
+    );
+    var matches = userIdRegex.allMatches(res.body);
+    if (matches.isNotEmpty) {
+      return matches.first.group(1)!;
+    }
+
+    throw Exception("User ID not found");
   }
 
   Future<PaginatedResponse<Reel>> getReels(
@@ -716,6 +747,39 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         HttpHeaders.acceptHeader: "*/*",
         HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
         HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        "X-CSRFToken": _csrfToken,
+      },
+    );
+
+    // TODO: Figure out whether we need to save the cookies here or not
+    // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
+
+    return jsonDecode(res.body);
+  }
+
+  Future<dynamic> getDocIdJson(
+    String docId,
+    Map<String, dynamic> variables, {
+    String host = "www.instagram.com",
+    String referer = "www.instagram.com",
+  }) async {
+    var uri = Uri(scheme: "https", host: host, path: "graphql/query");
+
+    var res = await client.post(
+      uri,
+      body: {
+        "doc_id": docId,
+        "variables": jsonEncode(variables),
+        "server_timestamps": "true",
+      },
+      encoding: Encoding.getByName("x-www-form-urlencoded"),
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.refererHeader: referer,
+        HttpHeaders.acceptHeader: "*/*",
+        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        "authority": "www.instagram.com",
         "X-CSRFToken": _csrfToken,
       },
     );

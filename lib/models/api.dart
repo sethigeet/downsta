@@ -2,9 +2,9 @@ import 'package:flutter/foundation.dart';
 
 class Profile {
   final Map<String, dynamic> _node;
-  late final PaginatedResponseV2<PostV2> _posts;
+  late final PaginatedResponse<PostV2> _posts;
   Profile(this._node) {
-    _posts = PaginatedResponseV2<PostV2>.empty();
+    _posts = PaginatedResponse<PostV2>.empty();
   }
 
   String get id => _node["id"];
@@ -24,7 +24,7 @@ class Profile {
   bool get isPrivate => _node["is_private"];
   bool get followedByViewer => _node["followed_by_viewer"];
 
-  PaginatedResponseV2<PostV2> get posts => _posts;
+  PaginatedResponse<PostV2> get posts => _posts;
 
   void update(Map<String, dynamic> node) {
     _node.addAll(node);
@@ -56,13 +56,14 @@ class Post {
 
     if (_node["edge_sidecar_to_children"] != null) {
       return List<String>.from(
-          _node["edge_sidecar_to_children"]["edges"].map((img) {
-        final node = img["node"];
-        if (node["is_video"]) {
-          return node["video_url"];
-        }
-        return node["display_url"];
-      }));
+        _node["edge_sidecar_to_children"]["edges"].map((img) {
+          final node = img["node"];
+          if (node["is_video"]) {
+            return node["video_url"];
+          }
+          return node["display_url"];
+        }),
+      );
     }
 
     return [displayUrl];
@@ -70,8 +71,11 @@ class Post {
 
   List<String> get displayUrls {
     if (_node["edge_sidecar_to_children"] != null) {
-      return List<String>.from(_node["edge_sidecar_to_children"]["edges"]
-          .map((img) => img["node"]["display_url"]));
+      return List<String>.from(
+        _node["edge_sidecar_to_children"]["edges"].map(
+          (img) => img["node"]["display_url"],
+        ),
+      );
     }
 
     return [displayUrl];
@@ -103,12 +107,14 @@ class PostV2 {
     }
 
     if (_node["carousel_media"] != null) {
-      return List<String>.from(_node["carousel_media"].map((node) {
-        if (node["video_duration"] != null) {
-          return node["video_versions"].first["url"];
-        }
-        return node["image_versions2"]["candidates"].first["url"];
-      }));
+      return List<String>.from(
+        _node["carousel_media"].map((node) {
+          if (node["video_duration"] != null) {
+            return node["video_versions"].first["url"];
+          }
+          return node["image_versions2"]["candidates"].first["url"];
+        }),
+      );
     }
 
     return [displayUrl];
@@ -116,8 +122,11 @@ class PostV2 {
 
   List<String> get displayUrls {
     if (_node["carousel_media"] != null) {
-      return List<String>.from(_node["carousel_media"]
-          .map((img) => img["image_versions2"]["candidates"].first["url"]));
+      return List<String>.from(
+        _node["carousel_media"].map(
+          (img) => img["image_versions2"]["candidates"].first["url"],
+        ),
+      );
     }
 
     return [displayUrl];
@@ -129,10 +138,10 @@ class Story extends Post {
 
   @override
   List<String> get urls => [
-        isVideo
-            ? _node["video_resources"].first["src"]
-            : _node["display_resources"].last["src"]
-      ];
+    isVideo
+        ? _node["video_resources"].first["src"]
+        : _node["display_resources"].last["src"],
+  ];
 
   @override
   List<String> get displayUrls => [displayUrl];
@@ -181,7 +190,8 @@ class PaginatedResponse<T> {
         throw ErrorHint("edgeConverter must be passed if edges are passed");
       }
       edges = List<T>.from(
-          _node["edges"].map((edge) => edgeConverter(edge["node"])));
+        _node["edges"].map((edge) => edgeConverter(edge["node"])),
+      );
     }
   }
 
