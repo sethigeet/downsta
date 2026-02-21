@@ -22,7 +22,8 @@ class Profile {
   }
 
   bool get isPrivate => _node["is_private"];
-  bool get followedByViewer => _node["followed_by_viewer"];
+  // bool get followedByViewer => _node["followed_by_viewer"];
+  bool get followedByViewer => true;
 
   PaginatedResponse<PostV2> get posts => _posts;
 
@@ -93,7 +94,7 @@ class PostV2 {
 
   String get displayUrl => _node["image_versions2"]["candidates"].first["url"];
 
-  bool get isVideo => _node["video_duration"] != null;
+  bool get isVideo => _node["video_versions"] != null;
 
   Map<String, dynamic> get _dimensions =>
       _node["image_versions2"]["candidates"].first;
@@ -109,7 +110,7 @@ class PostV2 {
     if (_node["carousel_media"] != null) {
       return List<String>.from(
         _node["carousel_media"].map((node) {
-          if (node["video_duration"] != null) {
+          if (node["video_versions"] != null) {
             return node["video_versions"].first["url"];
           }
           return node["image_versions2"]["candidates"].first["url"];
