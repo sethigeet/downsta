@@ -2,25 +2,20 @@ import 'package:flutter/material.dart';
 
 import 'package:provider/provider.dart';
 
-import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/services/services.dart';
-
-class ProfileScreenArguments {
-  String username;
-
-  ProfileScreenArguments({required this.username});
-}
+import 'package:downsta/widgets/widgets.dart';
 
 class ProfileScreen extends StatefulWidget {
-  const ProfileScreen({Key? key}) : super(key: key);
   static const routeName = "/profile";
+
+  const ProfileScreen({Key? key}) : super(key: key);
 
   @override
   State<ProfileScreen> createState() => _ProfileScreenState();
 }
 
 class _ProfileScreenState extends State<ProfileScreen>
-    with TickerProviderStateMixin {
+    with SingleTickerProviderStateMixin {
   late TabController _tabController;
 
   @override
@@ -30,7 +25,14 @@ class _ProfileScreenState extends State<ProfileScreen>
   }
 
   @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
     final args =
         ModalRoute.of(context)!.settings.arguments as ProfileScreenArguments;
     final username = args.username;
@@ -41,9 +43,7 @@ class _ProfileScreenState extends State<ProfileScreen>
       api.getUserInfo(username);
 
       return Scaffold(
-        appBar: AppBar(
-          title: Text(username),
-        ),
+        appBar: AppBar(title: Text(username)),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -60,9 +60,14 @@ class _ProfileScreenState extends State<ProfileScreen>
             title: Text(username),
             actions: const [DownloadStatusIndicator()],
           ),
-          SliverToBoxAdapter(
-            child: ProfileHeader(user: user),
-          ),
+          SliverToBoxAdapter(child: ProfileHeader(user: user)),
+          if (isPrivate)
+            const SliverFillRemaining(
+              child: NoContent(
+                message: "This account is private",
+                icon: Icons.lock_outline_rounded,
+              ),
+            ),
           if (!isPrivate)
             SliverPersistentHeader(
               pinned: true,
@@ -70,32 +75,30 @@ class _ProfileScreenState extends State<ProfileScreen>
                 TabBar(
                   controller: _tabController,
                   tabs: const [
-                    Tab(icon: Icon(Icons.photo), text: "Posts"),
-                    Tab(icon: Icon(Icons.timelapse), text: "Stories"),
+                    Tab(icon: Icon(Icons.grid_on_rounded), text: "Posts"),
                     Tab(
-                        icon: Icon(Icons.video_collection_rounded),
-                        text: "Reels"),
-                    Tab(icon: Icon(Icons.tv), text: "IGTV"),
+                      icon: Icon(Icons.auto_awesome_rounded),
+                      text: "Stories",
+                    ),
+                    Tab(icon: Icon(Icons.movie_filter_rounded), text: "Reels"),
+                    Tab(icon: Icon(Icons.smart_display_rounded), text: "IGTV"),
                   ],
                 ),
+                theme.scaffoldBackgroundColor,
               ),
             ),
-          SliverFillRemaining(
-            child: isPrivate
-                ? const NoContent(
-                    message: "This profile is private!",
-                    icon: Icons.privacy_tip_outlined,
-                  )
-                : TabBarView(
-                    controller: _tabController,
-                    children: [
-                      Posts(username: username),
-                      Stories(username: username),
-                      Reels(username: username),
-                      Videos(username: username),
-                    ],
-                  ),
-          )
+          if (!isPrivate)
+            SliverFillRemaining(
+              child: TabBarView(
+                controller: _tabController,
+                children: [
+                  Posts(username: username),
+                  Stories(username: username),
+                  Reels(username: username),
+                  Videos(username: username),
+                ],
+              ),
+            ),
         ],
       ),
     );
@@ -103,9 +106,10 @@ class _ProfileScreenState extends State<ProfileScreen>
 }
 
 class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
-  _SliverAppBarDelegate(this._tabBar);
+  _SliverAppBarDelegate(this._tabBar, this._backgroundColor);
 
   final TabBar _tabBar;
+  final Color _backgroundColor;
 
   @override
   double get minExtent => _tabBar.preferredSize.height;
@@ -114,15 +118,20 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
 
   @override
   Widget build(
-      BuildContext context, double shrinkOffset, bool overlapsContent) {
-    return Container(
-      color: Theme.of(context).colorScheme.surface,
-      child: _tabBar,
-    );
+    BuildContext context,
+    double shrinkOffset,
+    bool overlapsContent,
+  ) {
+    return Container(color: _backgroundColor, child: _tabBar);
   }
 
   @override
   bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
     return false;
   }
+}
+
+class ProfileScreenArguments {
+  final String username;
+  ProfileScreenArguments({required this.username});
 }

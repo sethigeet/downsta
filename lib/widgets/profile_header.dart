@@ -1,20 +1,15 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
 
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:provider/provider.dart';
 
-import 'package:downsta/models/models.dart';
-import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/utils.dart';
 
 class ProfileHeader extends StatefulWidget {
-  const ProfileHeader({
-    Key? key,
-    required this.user,
-  }) : super(key: key);
+  final dynamic user;
 
-  final Profile user;
+  const ProfileHeader({Key? key, required this.user}) : super(key: key);
 
   @override
   State<ProfileHeader> createState() => _ProfileHeaderState();
@@ -24,62 +19,139 @@ class _ProfileHeaderState extends State<ProfileHeader> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final api = Provider.of<Api>(context, listen: false);
 
     final username = widget.user.username;
     final fullName = widget.user.fullName;
     final profilePicUrl = widget.user.profilePicUrl;
 
-    return Column(children: [
-      Hero(
-        tag: "profile-picture-$username",
-        child: GestureDetector(
-          onTap: () async {
-            final snackbarController =
-                ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: const Text("Fetching high quality profile pic..."),
-                backgroundColor: Theme.of(context).colorScheme.primary,
-                duration: const Duration(days: 365),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 12),
+      child: Row(
+        children: [
+          Hero(
+            tag: "profile-picture-$username",
+            child: GestureDetector(
+              onTap: () async {
+                final snackbarController = ScaffoldMessenger.of(
+                  context,
+                ).showSnackBar(
+                  SnackBar(
+                    content: const Text("Fetching high quality profile pic..."),
+                    backgroundColor: theme.colorScheme.primary,
+                    duration: const Duration(days: 365),
+                  ),
+                );
+                final url = await api.getProfilePicUrl(username);
+                snackbarController.close();
+                if (!mounted) return;
+                // ignore: use_build_context_synchronously
+                _showHdPicDialog(context, url, username);
+              },
+              child: Container(
+                padding: const EdgeInsets.all(3),
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  gradient: LinearGradient(
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                    colors: [
+                      theme.colorScheme.primary,
+                      theme.colorScheme.primary.withValues(alpha: 0.4),
+                    ],
+                  ),
+                ),
+                child: Container(
+                  padding: const EdgeInsets.all(2),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: theme.scaffoldBackgroundColor,
+                  ),
+                  child: CircleAvatar(
+                    radius: 40,
+                    backgroundColor: theme.colorScheme.surface,
+                    backgroundImage: CachedNetworkImageProvider(
+                      profilePicUrl,
+                      cacheKey: getCacheKey(profilePicUrl),
+                    ),
+                  ),
+                ),
               ),
-            );
-            final url = await api.getProfilePicUrl(username);
-            snackbarController.close();
-            _gotoPostScreen(url);
-          },
-          child: CircleAvatar(
-            backgroundImage: CachedNetworkImageProvider(
-              profilePicUrl,
-              cacheKey: getCacheKey(profilePicUrl),
             ),
-            backgroundColor: theme.colorScheme.surface,
-            radius: 50,
           ),
-        ),
+          const SizedBox(width: 20),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  fullName,
+                  style: theme.textTheme.titleLarge?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  "@$username",
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.primary.withValues(alpha: 0.7),
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
-      const SizedBox(height: 10),
-      Text(fullName,
-          style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-      Text("@$username",
-          style: const TextStyle(fontSize: 14, color: Colors.white70)),
-    ]);
+    );
   }
 
-  void _gotoPostScreen(String url) {
-    final username = widget.user.username;
-    Navigator.pushNamed(context, PostScreen.routeName,
-        arguments: PostScreenArguments(
-          post: PostV2({
-            "image_versions2": {
-              "candidates": [
-                {"url": url}
-              ]
-            },
-            "id":
-                "$username-profile-pic-${DateTime.now().millisecondsSinceEpoch}",
-          }),
-          username: username,
-        ));
+  void _showHdPicDialog(BuildContext context, String url, String username) {
+    final theme = Theme.of(context);
+    final downloader = Provider.of<Downloader>(context, listen: false);
+
+    showDialog(
+      context: context,
+      builder:
+          (context) => Dialog(
+            backgroundColor: Colors.transparent,
+            insetPadding: const EdgeInsets.all(20),
+            child: Stack(
+              alignment: Alignment.bottomRight,
+              children: [
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(20),
+                  child: CachedNetworkImage(
+                    imageUrl: url,
+                    cacheKey: getCacheKey(url),
+                    fit: BoxFit.contain,
+                    placeholder:
+                        (context, _) => const SizedBox(
+                          width: 200,
+                          height: 200,
+                          child: Center(child: CircularProgressIndicator()),
+                        ),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(12),
+                  child: FloatingActionButton.small(
+                    backgroundColor: theme.colorScheme.primary,
+                    onPressed: () {
+                      downloader.download([url], username);
+                      Navigator.pop(context);
+                    },
+                    child: Icon(
+                      Icons.download,
+                      color: theme.colorScheme.onPrimary,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+    );
   }
 }

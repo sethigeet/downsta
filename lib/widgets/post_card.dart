@@ -19,10 +19,7 @@ import 'package:downsta/widgets/widgets.dart';
 import 'package:downsta/screens/screens.dart';
 
 class PostCard extends StatefulWidget {
-  const PostCard({
-    Key? key,
-    required this.post,
-  }) : super(key: key);
+  const PostCard({Key? key, required this.post}) : super(key: key);
 
   final PostV2 post;
 
@@ -52,7 +49,7 @@ class _PostCardState extends State<PostCard> {
   }
 
   void initializePlayer(String url, String coverImgUrl) async {
-    _videoController = VideoPlayerController.network(url);
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(url));
     await _videoController!.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
@@ -80,66 +77,105 @@ class _PostCardState extends State<PostCard> {
     final coverImgUrls = widget.post.displayUrls;
 
     return FutureBuilder<bool>(
-        future: db.isPostDownloaded(widget.post.id),
-        builder: (context, snap) {
-          if (!snap.hasData) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      future: db.isPostDownloaded(widget.post.id),
+      builder: (context, snap) {
+        if (!snap.hasData) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          final bool alreadyDownloaded = snap.data!;
-          return Card(
-            child: Column(children: [
+        final bool alreadyDownloaded = snap.data!;
+        return Card(
+          child: Column(
+            children: [
               GestureDetector(
-                onTap: () => Navigator.pushNamed(
-                  context,
-                  ProfileScreen.routeName,
-                  arguments: ProfileScreenArguments(username: username),
-                ),
+                onTap:
+                    () => Navigator.pushNamed(
+                      context,
+                      ProfileScreen.routeName,
+                      arguments: ProfileScreenArguments(username: username),
+                    ),
                 child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 14,
+                    vertical: 10,
+                  ),
                   child: Row(
                     children: [
-                      CircleAvatar(
-                        backgroundImage: CachedNetworkImageProvider(
-                          widget.post.profilePicUrl,
-                          cacheKey: getCacheKey(widget.post.profilePicUrl),
+                      Container(
+                        padding: const EdgeInsets.all(1.5),
+                        decoration: BoxDecoration(
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: theme.colorScheme.primary.withValues(
+                              alpha: 0.3,
+                            ),
+                            width: 1.5,
+                          ),
+                        ),
+                        child: CircleAvatar(
+                          backgroundImage: CachedNetworkImageProvider(
+                            widget.post.profilePicUrl,
+                            cacheKey: getCacheKey(widget.post.profilePicUrl),
+                          ),
+                          backgroundColor: theme.colorScheme.surface,
+                          radius: 18,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 12),
                       Text(
                         username,
-                        style: const TextStyle(fontSize: 18),
+                        style: theme.textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                        ),
                       ),
                       const Spacer(),
                       IconButton(
-                        onPressed: alreadyDownloaded
-                            ? null
-                            : () async {
-                                final urls = widget.post.urls;
-                                downloader.download(urls, username);
-                                db.saveItemToHistory(
+                        onPressed:
+                            alreadyDownloaded
+                                ? null
+                                : () async {
+                                  final urls = widget.post.urls;
+                                  downloader.download(urls, username);
+                                  db.saveItemToHistory(
                                     HistoryItemsCompanion.insert(
-                                  postId: widget.post.id,
-                                  coverImgBytes: Value(await downloader
-                                      .getImgBytes(widget.post.displayUrl)),
-                                  imgUrls: urls.join(","),
-                                  username: username,
-                                ));
-                              },
-                        icon: alreadyDownloaded
-                            ? const Icon(Icons.download_done_rounded)
-                            : const Icon(Icons.download_rounded),
+                                      postId: widget.post.id,
+                                      coverImgBytes: Value(
+                                        await downloader.getImgBytes(
+                                          widget.post.displayUrl,
+                                        ),
+                                      ),
+                                      imgUrls: urls.join(","),
+                                      username: username,
+                                    ),
+                                  );
+                                },
+                        icon: Icon(
+                          alreadyDownloaded
+                              ? Icons.download_done_rounded
+                              : Icons.download_rounded,
+                          color:
+                              alreadyDownloaded
+                                  ? theme.colorScheme.onSurfaceVariant
+                                  : theme.colorScheme.primary,
+                          size: 22,
+                        ),
                       ),
                       IconButton(
-                        onPressed: () =>
-                            Navigator.pushNamed(context, PostScreen.routeName,
-                                arguments: PostScreenArguments(
-                                  post: widget.post,
-                                  username: username,
-                                )),
-                        icon: const Icon(Icons.open_in_full_rounded),
-                      )
+                        onPressed:
+                            () => Navigator.pushNamed(
+                              context,
+                              PostScreen.routeName,
+                              arguments: PostScreenArguments(
+                                post: widget.post,
+                                username: username,
+                              ),
+                            ),
+                        icon: Icon(
+                          Icons.open_in_full_rounded,
+                          size: 20,
+                          color: theme.colorScheme.onSurfaceVariant,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -154,12 +190,14 @@ class _PostCardState extends State<PostCard> {
                     PhotoViewGallery.builder(
                       itemCount: urls.length,
                       scrollPhysics: const BouncingScrollPhysics(
-                          parent: AlwaysScrollableScrollPhysics()),
+                        parent: AlwaysScrollableScrollPhysics(),
+                      ),
                       pageController: _pageController,
-                      onPageChanged: (index) =>
-                          setState(() => activeIndex = index),
-                      backgroundDecoration:
-                          BoxDecoration(color: theme.colorScheme.surface),
+                      onPageChanged:
+                          (index) => setState(() => activeIndex = index),
+                      backgroundDecoration: BoxDecoration(
+                        color: theme.colorScheme.surface,
+                      ),
                       builder: (context, index) {
                         final url = urls[index];
                         final coverImgUrl = coverImgUrls[index];
@@ -168,17 +206,21 @@ class _PostCardState extends State<PostCard> {
                             initializePlayer(url, coverImgUrl);
                           }
                           return PhotoViewGalleryPageOptions.customChild(
-                            child: _chewieController == null
-                                ? buildLoadingWidget(coverImgUrl)
-                                : !_chewieController!.videoPlayerController
-                                        .value.isInitialized
+                            child:
+                                _chewieController == null
+                                    ? buildLoadingWidget(coverImgUrl)
+                                    : !_chewieController!
+                                        .videoPlayerController
+                                        .value
+                                        .isInitialized
                                     ? buildLoadingWidget(coverImgUrl)
                                     : Chewie(controller: _chewieController!),
                             controller: _photoController,
                             minScale: PhotoViewComputedScale.contained,
                             maxScale: PhotoViewComputedScale.covered * 4,
                             heroAttributes: PhotoViewHeroAttributes(
-                                tag: "post-${widget.post.id}"),
+                              tag: "post-${widget.post.id}",
+                            ),
                           );
                         }
 
@@ -186,68 +228,80 @@ class _PostCardState extends State<PostCard> {
                           controller: _photoController,
                           minScale: PhotoViewComputedScale.contained,
                           maxScale: PhotoViewComputedScale.covered * 4,
-                          imageProvider: CachedNetworkImageProvider(url,
-                              cacheKey: getCacheKey(url)),
+                          imageProvider: CachedNetworkImageProvider(
+                            url,
+                            cacheKey: getCacheKey(url),
+                          ),
                           initialScale: PhotoViewComputedScale.contained,
-                          errorBuilder: (context, error, _) => const Center(
+                          errorBuilder:
+                              (context, error, _) => const Center(
+                                child: SizedBox(
+                                  width: 25,
+                                  height: 25,
+                                  child: Icon(Icons.error),
+                                ),
+                              ),
+                          heroAttributes: PhotoViewHeroAttributes(
+                            tag: "post-${widget.post.id}",
+                          ),
+                        );
+                      },
+                      loadingBuilder:
+                          (context, event) => Center(
                             child: SizedBox(
                               width: 25,
                               height: 25,
-                              child: Icon(Icons.error),
+                              child: CircularProgressIndicator(
+                                value:
+                                    (event == null ||
+                                            event.expectedTotalBytes == null)
+                                        ? null
+                                        : event.cumulativeBytesLoaded /
+                                            event
+                                                .expectedTotalBytes!, // why does dart think that I am not checking expectedTotalBytes to be null 2 lines above??)),
+                              ),
                             ),
                           ),
-                          heroAttributes: PhotoViewHeroAttributes(
-                              tag: "post-${widget.post.id}"),
-                        );
-                      },
-                      loadingBuilder: (context, event) => Center(
-                        child: SizedBox(
-                            width: 25,
-                            height: 25,
-                            child: CircularProgressIndicator(
-                              value: (event == null ||
-                                      event.expectedTotalBytes == null)
-                                  ? null
-                                  : event.cumulativeBytesLoaded /
-                                      event
-                                          .expectedTotalBytes!, // why does dart think that I am not checking expectedTotalBytes to be null 2 lines above??)),
-                            )),
-                      ),
                     ),
                     Align(
                       alignment: Alignment.bottomCenter,
                       child: Padding(
                         padding: const EdgeInsets.only(bottom: 10),
-                        child: buildIndicators(urls.length),
+                        child: buildIndicators(context, urls.length),
                       ),
-                    )
+                    ),
                   ],
                 ),
               ),
-            ]),
-          );
-        });
+            ],
+          ),
+        );
+      },
+    );
   }
 
-  Widget buildIndicators(imagesLength) {
+  Widget buildIndicators(BuildContext context, imagesLength) {
     if (imagesLength == 1) {
       return Container();
     }
 
+    final theme = Theme.of(context);
     return SmoothPageIndicator(
       controller: _pageController,
       count: imagesLength,
       effect: ScrollingDotsEffect(
-        dotWidth: 10,
-        dotHeight: 10,
-        dotColor: Colors.grey.shade800,
-        activeDotColor: Colors.deepPurple.shade900,
+        dotWidth: 8,
+        dotHeight: 8,
+        spacing: 6,
+        dotColor: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.25),
+        activeDotColor: theme.colorScheme.primary,
       ),
-      onDotClicked: (index) => _pageController.animateToPage(
-        index,
-        duration: const Duration(milliseconds: 300),
-        curve: Curves.easeInOut,
-      ),
+      onDotClicked:
+          (index) => _pageController.animateToPage(
+            index,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          ),
     );
   }
 

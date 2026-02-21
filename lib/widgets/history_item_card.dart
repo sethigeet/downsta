@@ -5,90 +5,104 @@ import 'package:provider/provider.dart';
 import 'package:downsta/services/services.dart';
 
 class HistoryItemCard extends StatelessWidget {
-  const HistoryItemCard({
-    Key? key,
-    required this.item,
-  }) : super(key: key);
+  const HistoryItemCard({Key? key, required this.item, required this.onDelete})
+    : super(key: key);
 
   final HistoryItem item;
+  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
-    final db = Provider.of<DB>(context);
+    final theme = Theme.of(context);
     final downloader = Provider.of<Downloader>(context);
 
-    return GestureDetector(
-      child: Card(
-        child: SizedBox(
-          height: 100,
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-            SizedBox(
-              width: 100,
-              child: item.coverImgBytes != null
-                  ? Image.memory(
-                      item.coverImgBytes!,
-                      fit: BoxFit.cover,
-                    )
-                  : null,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      child: Material(
+        color: Colors.transparent,
+        child: Container(
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(16),
+            color: theme.cardTheme.color,
+            border: Border.all(
+              color: theme.colorScheme.outlineVariant.withValues(alpha: 0.3),
             ),
-            Expanded(
-              child: Container(
-                padding: const EdgeInsets.all(10),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(item.username,
-                        style: const TextStyle(
-                          fontSize: 20,
-                          fontWeight: FontWeight.w500,
-                        )),
-                    const SizedBox(height: 5),
-                    Text("#${item.postId}",
-                        style: TextStyle(
-                          fontSize: 10,
-                          color: Colors.grey.shade600,
-                        )),
-                  ],
-                ),
+          ),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 6,
+            ),
+            leading: ClipRRect(
+              borderRadius: BorderRadius.circular(12),
+              child: SizedBox(
+                width: 56,
+                height: 56,
+                child: item.coverImgBytes != null
+                    ? Image.memory(
+                        item.coverImgBytes!,
+                        fit: BoxFit.cover,
+                      )
+                    : Container(
+                        color: theme.colorScheme.surfaceContainerHighest,
+                        child: Icon(
+                          Icons.broken_image_outlined,
+                          color: theme.colorScheme.onSurfaceVariant,
+                          size: 20,
+                        ),
+                      ),
               ),
             ),
-            IconButton(
-              onPressed: () async {
-                await showModalBottomSheet(
-                    context: context,
-                    builder: (context) {
-                      return SizedBox(
-                        height: 100,
-                        child: Column(children: [
-                          ListTile(
-                            onTap: () {
-                              downloader.download(
-                                item.imgUrls.split(","),
-                                item.username,
-                              );
-                              Navigator.pop(context);
-                            },
-                            title: const Text("Download again"),
-                            leading: const Icon(Icons.download_rounded),
-                          ),
-                          ListTile(
-                            onTap: () {
-                              db.deleteItemFromHistory(item.id);
-                              Navigator.pop(context);
-                            },
-                            title: const Text("Delete"),
-                            leading: const Icon(Icons.delete_forever_rounded),
-                          ),
-                        ]),
-                      );
-                    });
-              },
-              icon: const Icon(Icons.more_vert),
-            )
-          ]),
+            title: Text(
+              item.username,
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            subtitle: Text(
+              item.postId,
+              style: theme.textTheme.bodySmall?.copyWith(
+                color: theme.colorScheme.onSurfaceVariant,
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.refresh_rounded,
+                    color: theme.colorScheme.primary,
+                    size: 20,
+                  ),
+                  onPressed: () {
+                    downloader.download(
+                      item.imgUrls.split(","),
+                      item.username,
+                    );
+                  },
+                  tooltip: "Download again",
+                  visualDensity: VisualDensity.compact,
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.delete_outline_rounded,
+                    color: theme.colorScheme.error.withValues(alpha: 0.7),
+                    size: 20,
+                  ),
+                  onPressed: onDelete,
+                  tooltip: "Delete",
+                  visualDensity: VisualDensity.compact,
+                ),
+              ],
+            ),
+          ),
         ),
       ),
-      onTap: () {},
     );
   }
 }
+

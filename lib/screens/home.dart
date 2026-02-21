@@ -49,51 +49,18 @@ class _HomeScreenState extends State<HomeScreen> {
       final postInfo = await api.getPostInfo(shortCode);
 
       if (postInfo == null) {
-        // ignore: use_build_context_synchronously
         showDialog<void>(
-            context: context,
-            builder: (context) => AlertDialog(
-                  title: const Text("Unable to retreive post!"),
-                  content: const SingleChildScrollView(
-                    child: ListBody(
-                      children: [
-                        Text(
-                            "You may not follow this account or you have been blocked by this account!"),
-                      ],
-                    ),
-                  ),
-                  actions: [
-                    TextButton(
-                      child: const Text("Okay"),
-                      onPressed: () => Navigator.pop(context),
-                    ),
-                  ],
-                ));
-        return;
-      }
-
-      final coverImgUrl = postInfo.displayUrl;
-      final urls = postInfo.urls;
-      final username = postInfo.username;
-      downloader.download(urls, username);
-      downloader
-          .getImgBytes(coverImgUrl)
-          .then((b) => db.saveItemToHistory(HistoryItemsCompanion.insert(
-                postId: postInfo.id,
-                username: username,
-                coverImgBytes: Value(b),
-                imgUrls: urls.join(","),
-              )));
-    } catch (err) {
-      showDialog<void>(
+          // ignore: use_build_context_synchronously
           context: context,
-          builder: (context) => AlertDialog(
-                title: const Text("Invalid URL shared!"),
-                content: SingleChildScrollView(
+          builder:
+              (context) => AlertDialog(
+                title: const Text("Unable to retreive post!"),
+                content: const SingleChildScrollView(
                   child: ListBody(
                     children: [
-                      const Text("URL: "),
-                      Text(sharedData),
+                      Text(
+                        "You may not follow this account or you have been blocked by this account!",
+                      ),
                     ],
                   ),
                 ),
@@ -103,7 +70,47 @@ class _HomeScreenState extends State<HomeScreen> {
                     onPressed: () => Navigator.pop(context),
                   ),
                 ],
-              ));
+              ),
+        );
+        return;
+      }
+
+      final coverImgUrl = postInfo.displayUrl;
+      final urls = postInfo.urls;
+      final username = postInfo.username;
+      downloader.download(urls, username);
+      downloader
+          .getImgBytes(coverImgUrl)
+          .then(
+            (b) => db.saveItemToHistory(
+              HistoryItemsCompanion.insert(
+                postId: postInfo.id,
+                username: username,
+                coverImgBytes: Value(b),
+                imgUrls: urls.join(","),
+              ),
+            ),
+          );
+    } catch (err) {
+      showDialog<void>(
+        // ignore: use_build_context_synchronously
+        context: context,
+        builder:
+            (context) => AlertDialog(
+              title: const Text("Invalid URL shared!"),
+              content: SingleChildScrollView(
+                child: ListBody(
+                  children: [const Text("URL: "), Text(sharedData)],
+                ),
+              ),
+              actions: [
+                TextButton(
+                  child: const Text("Okay"),
+                  onPressed: () => Navigator.pop(context),
+                ),
+              ],
+            ),
+      );
     }
   }
 
@@ -115,9 +122,7 @@ class _HomeScreenState extends State<HomeScreen> {
       api.getUserInfo(api.username);
 
       return Scaffold(
-        appBar: AppBar(
-          title: const Text("Downsta"),
-        ),
+        appBar: AppBar(title: const Text("Downsta")),
         body: const Center(child: CircularProgressIndicator()),
       );
     }
@@ -126,16 +131,19 @@ class _HomeScreenState extends State<HomeScreen> {
       appBar: AppBar(
         title: const Text("Downsta"),
         actions: [
-          Builder(builder: (context) {
-            return IconButton(
-              onPressed: () => showSearch(
-                context: context,
-                delegate: SearchProfiles(api: api),
-              ),
-              icon: const Icon(Icons.search),
-            );
-          }),
-          const DownloadStatusIndicator()
+          Builder(
+            builder: (context) {
+              return IconButton(
+                onPressed:
+                    () => showSearch(
+                      context: context,
+                      delegate: SearchProfiles(api: api),
+                    ),
+                icon: const Icon(Icons.search_rounded),
+              );
+            },
+          ),
+          const DownloadStatusIndicator(),
         ],
       ),
       drawer: MyDrawer(user: me),
@@ -143,51 +151,96 @@ class _HomeScreenState extends State<HomeScreen> {
         selectedIndex: index,
         onDestinationSelected: (newIndex) => setState(() => index = newIndex),
         destinations: const [
-          NavigationDestination(icon: Icon(Icons.person), label: "Following"),
-          NavigationDestination(icon: Icon(Icons.feed_rounded), label: "Feed"),
+          NavigationDestination(
+            icon: Icon(Icons.people_outline_rounded),
+            selectedIcon: Icon(Icons.people_rounded),
+            label: "Following",
+          ),
+          NavigationDestination(
+            icon: Icon(Icons.dynamic_feed_outlined),
+            selectedIcon: Icon(Icons.dynamic_feed_rounded),
+            label: "Feed",
+          ),
         ],
       ),
-      body: [
-        const Following(),
-        const Feed(),
-      ][index],
+      body: [const Following(), const Feed()][index],
     );
   }
 }
 
 class MyDrawer extends StatelessWidget {
-  const MyDrawer({
-    Key? key,
-    required this.user,
-  }) : super(key: key);
+  const MyDrawer({Key? key, required this.user}) : super(key: key);
 
   final Profile user;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
     final api = context.watch<Api>();
 
     return Drawer(
-      child: ListView(
-        padding: EdgeInsets.zero,
-        children: <Widget>[
-          DrawerHeader(
+      child: Column(
+        children: [
+          // ── Drawer Header ──
+          Container(
+            width: double.infinity,
+            padding: EdgeInsets.only(
+              top: MediaQuery.of(context).padding.top + 24,
+              bottom: 20,
+              left: 20,
+              right: 20,
+            ),
             decoration: BoxDecoration(
-              color: theme.colorScheme.primary,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  theme.colorScheme.primary.withValues(alpha: 0.15),
+                  theme.colorScheme.surface,
+                ],
+              ),
             ),
             child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                CircleAvatar(
-                  backgroundImage: CachedNetworkImageProvider(
-                    user.profilePicUrl,
-                    cacheKey: getCacheKey(user.profilePicUrl),
+                Container(
+                  padding: const EdgeInsets.all(3),
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    gradient: LinearGradient(
+                      begin: Alignment.topLeft,
+                      end: Alignment.bottomRight,
+                      colors: [
+                        theme.colorScheme.primary,
+                        theme.colorScheme.primary.withValues(alpha: 0.3),
+                      ],
+                    ),
                   ),
-                  backgroundColor: theme.colorScheme.surface,
-                  radius: 35,
+                  child: Container(
+                    padding: const EdgeInsets.all(2),
+                    decoration: BoxDecoration(
+                      shape: BoxShape.circle,
+                      color: theme.drawerTheme.backgroundColor,
+                    ),
+                    child: CircleAvatar(
+                      backgroundImage: CachedNetworkImageProvider(
+                        user.profilePicUrl,
+                        cacheKey: getCacheKey(user.profilePicUrl),
+                      ),
+                      backgroundColor: theme.colorScheme.surface,
+                      radius: 36,
+                    ),
+                  ),
                 ),
-                const SizedBox(height: 15),
+                const SizedBox(height: 16),
+                Text(
+                  user.fullName,
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                // ── User Switcher ──
                 FutureBuilder(
                   future: api.db.getLoggedInUsers(),
                   builder: (context, snapshot) {
@@ -196,35 +249,61 @@ class MyDrawer extends StatelessWidget {
                     } else if (snapshot.hasData) {
                       return DropdownButton<String>(
                         value: user.username,
-                        iconEnabledColor: theme.colorScheme.onPrimary,
+                        underline: const SizedBox.shrink(),
+                        isDense: true,
+                        iconEnabledColor: theme.colorScheme.primary,
+                        icon: const Padding(
+                          padding: EdgeInsets.only(left: 4),
+                          child: Icon(Icons.unfold_more_rounded, size: 18),
+                        ),
                         selectedItemBuilder: (context) {
                           return (snapshot.data as List<String>)
-                              .map((username) => DropdownMenuItem(
-                                    value: username,
-                                    child: Text(
-                                      username,
-                                      style: TextStyle(
-                                        fontWeight: FontWeight.bold,
-                                        color: theme.colorScheme.onPrimary,
-                                      ),
+                              .map(
+                                (username) => DropdownMenuItem(
+                                  value: username,
+                                  child: Text(
+                                    "@$username",
+                                    style: theme.textTheme.bodyMedium?.copyWith(
+                                      color: theme.colorScheme.primary
+                                          .withValues(alpha: 0.7),
+                                      fontWeight: FontWeight.w500,
                                     ),
-                                  ))
+                                  ),
+                                ),
+                              )
                               .toList();
                         },
-                        // text: theme.colorScheme.onPrimary,
-                        icon: const Icon(Icons.person),
                         items: [
                           ...(snapshot.data as List<String>)
-                              .map((username) => DropdownMenuItem(
-                                    value: username,
-                                    child: Text(username),
-                                  ))
+                              .map(
+                                (username) => DropdownMenuItem(
+                                  value: username,
+                                  child: Text(
+                                    username,
+                                    style: theme.textTheme.bodyMedium,
+                                  ),
+                                ),
+                              )
                               .toList(),
-                          const DropdownMenuItem(
+                          DropdownMenuItem(
                             value: "add-user",
                             child: Row(
-                                children: [Icon(Icons.add), Text("Add User")]),
-                          )
+                              children: [
+                                Icon(
+                                  Icons.add_rounded,
+                                  size: 18,
+                                  color: theme.colorScheme.primary,
+                                ),
+                                const SizedBox(width: 8),
+                                Text(
+                                  "Add User",
+                                  style: theme.textTheme.bodyMedium?.copyWith(
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         ],
                         onChanged: (newVal) {
                           if (newVal == null) {
@@ -233,11 +312,12 @@ class MyDrawer extends StatelessWidget {
                           if (newVal == "add-user") {
                             Navigator.pop(context);
                             Navigator.push(
-                                context,
-                                MaterialPageRoute(
-                                  builder: (_) =>
-                                      const LoginScreen(addingUser: true),
-                                ));
+                              context,
+                              MaterialPageRoute(
+                                builder:
+                                    (_) => const LoginScreen(addingUser: true),
+                              ),
+                            );
                             return;
                           }
 
@@ -247,69 +327,103 @@ class MyDrawer extends StatelessWidget {
                         },
                       );
                     } else {
-                      return const Center(child: CircularProgressIndicator());
+                      return const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      );
                     }
                   },
-                )
+                ),
               ],
             ),
           ),
-          ListTile(
-            leading: const Icon(Icons.settings),
-            title: const Text("Settings"),
-            onTap: () {
-              showDialog<void>(
-                context: context,
-                barrierDismissible: false,
-                builder: (BuildContext context) {
-                  return AlertDialog(
-                    title: const Text("Not Implemented!"),
-                    content: const SingleChildScrollView(
-                      child: ListBody(
-                        children: [
-                          Text("TODO :)"),
-                        ],
-                      ),
-                    ),
-                    actions: <Widget>[
-                      TextButton(
-                        child: const Text("Okay"),
-                        onPressed: () {
-                          Navigator.pop(context);
-                        },
-                      ),
-                    ],
-                  );
-                },
-              );
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.history),
-            title: const Text("Download History"),
-            onTap: () {
-              Navigator.pushNamed(context, HistoryScreen.routeName);
-            },
-          ),
-          ListTile(
-            leading: const Icon(Icons.logout),
-            title: const Text("Logout"),
-            onTap: () async {
-              final snackbarController =
-                  ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(
-                  content: const Text("Logging out..."),
-                  backgroundColor: Theme.of(context).colorScheme.primary,
-                  duration: const Duration(days: 365),
+
+          const SizedBox(height: 8),
+
+          // ── Menu Items ──
+          Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 12),
+            child: Column(
+              children: [
+                ListTile(
+                  leading: Icon(
+                    Icons.settings_outlined,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text("Settings", style: theme.textTheme.bodyLarge),
+                  onTap: () {
+                    showDialog<void>(
+                      context: context,
+                      barrierDismissible: false,
+                      builder: (BuildContext context) {
+                        return AlertDialog(
+                          title: const Text("Not Implemented!"),
+                          content: const SingleChildScrollView(
+                            child: ListBody(children: [Text("TODO :)")]),
+                          ),
+                          actions: <Widget>[
+                            TextButton(
+                              child: const Text("Okay"),
+                              onPressed: () {
+                                Navigator.pop(context);
+                              },
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
                 ),
-              );
-              await api.logout(user.username);
-              snackbarController.close();
-              // ignore: use_build_context_synchronously
-              Navigator.pop(context);
-              // ignore: use_build_context_synchronously
-              Navigator.pushReplacementNamed(context, LoginScreen.routeName);
-            },
+                ListTile(
+                  leading: Icon(
+                    Icons.history_rounded,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text(
+                    "Download History",
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, HistoryScreen.routeName);
+                  },
+                ),
+                const Divider(),
+                ListTile(
+                  leading: Icon(
+                    Icons.logout_rounded,
+                    color: theme.colorScheme.error.withValues(alpha: 0.7),
+                  ),
+                  title: Text(
+                    "Logout",
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.error.withValues(alpha: 0.7),
+                    ),
+                  ),
+                  onTap: () async {
+                    final snackbarController = ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(
+                      SnackBar(
+                        content: const Text("Logging out..."),
+                        backgroundColor: Theme.of(context).colorScheme.primary,
+                        duration: const Duration(days: 365),
+                      ),
+                    );
+                    await api.logout(user.username);
+                    snackbarController.close();
+                    // ignore: use_build_context_synchronously
+                    Navigator.pop(context);
+                    // ignore: use_build_context_synchronously
+                    Navigator.pushReplacementNamed(
+                      // ignore: use_build_context_synchronously
+                      context,
+                      LoginScreen.routeName,
+                    );
+                  },
+                ),
+              ],
+            ),
           ),
         ],
       ),

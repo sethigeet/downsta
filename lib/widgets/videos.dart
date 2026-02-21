@@ -51,7 +51,7 @@ class _VideosState extends State<Videos> {
         queryHash: ApiQueryHashes.videos,
         params: {
           "id": await api.getUserId(widget.username),
-          "after": endCursor
+          "after": endCursor,
         },
         resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
         cacheExtractor: (cache) => cache.videos[widget.username],
@@ -70,17 +70,23 @@ class _VideosState extends State<Videos> {
     final api = context.watch<Api>();
     final userVideos = api.cache.videos[widget.username];
     if (userVideos == null) {
-      api.getUserId(widget.username).then((userId) => api.get<Post>(
-            queryHash: ApiQueryHashes.videos,
-            params: {"id": userId},
-            resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
-            cacheExtractor: (cache) => cache.videos[widget.username],
-            nodeConverter: (node) => Post(node),
-            referer: "https://www.instagram.com/${widget.username}/channel/",
-            initial: true,
-            cacheInitializer: (cache) =>
-                cache.videos[widget.username] = PaginatedResponse<Post>.empty(),
-          ));
+      api
+          .getUserId(widget.username)
+          .then(
+            (userId) => api.get<Post>(
+              queryHash: ApiQueryHashes.videos,
+              params: {"id": userId},
+              resExtractor: (res) => res["user"]["edge_felix_video_timeline"],
+              cacheExtractor: (cache) => cache.videos[widget.username],
+              nodeConverter: (node) => Post(node),
+              referer: "https://www.instagram.com/${widget.username}/channel/",
+              initial: true,
+              cacheInitializer:
+                  (cache) =>
+                      cache.videos[widget.username] =
+                          PaginatedResponse<Post>.empty(),
+            ),
+          );
 
       return const Center(child: CircularProgressIndicator());
     }
@@ -100,95 +106,99 @@ class _VideosState extends State<Videos> {
     return Stack(
       children: [
         GridView.builder(
-            itemCount: hasMoreVideos ? videos.length + 1 : videos.length,
-            controller: _scrollController,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 1,
-            ),
-            itemBuilder: (context, index) {
-              if (hasMoreVideos && index == videos.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+          itemCount: hasMoreVideos ? videos.length + 1 : videos.length,
+          controller: _scrollController,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 1,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemBuilder: (context, index) {
+            if (hasMoreVideos && index == videos.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-              final video = videos[index];
-              final imageUrl = video.displayUrl;
-              final toBeDownloaded = toDownload.contains(index);
-              return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(video.id),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+            final video = videos[index];
+            final imageUrl = video.displayUrl;
+            final toBeDownloaded = toDownload.contains(index);
+            return FutureBuilder<bool>(
+              future: db.isPostDownloaded(video.id),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                    final bool alreadyDownloaded = snap.data!;
-                    return Hero(
-                      tag: "video-${video.id}",
-                      child: GestureDetector(
-                        onTap: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
+                final bool alreadyDownloaded = snap.data!;
+                return Hero(
+                  tag: "video-${video.id}",
+                  child: GestureDetector(
+                    onTap: () {
+                      if (selectionStarted) {
+                        if (!alreadyDownloaded) {
+                          setState(() {
+                            if (toBeDownloaded) {
+                              toDownload.remove(index);
+                            } else {
+                              toDownload.add(index);
                             }
-                          } else {
-                            Navigator.pushNamed(
-                              context,
-                              VideoScreen.routeName,
-                              arguments: VideoScreenArguments(
-                                video: video,
-                                username: widget.username,
-                              ),
-                            );
-                          }
-                        },
-                        onLongPress: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
+                          });
+                        }
+                      } else {
+                        Navigator.pushNamed(
+                          context,
+                          VideoScreen.routeName,
+                          arguments: VideoScreenArguments(
+                            video: video,
+                            username: widget.username,
+                          ),
+                        );
+                      }
+                    },
+                    onLongPress: () {
+                      if (selectionStarted) {
+                        if (!alreadyDownloaded) {
+                          setState(() {
+                            if (toBeDownloaded) {
+                              toDownload.remove(index);
+                            } else {
+                              toDownload.add(index);
                             }
-                          } else {
-                            setState(() {
-                              selectionStarted = true;
-                              if (!alreadyDownloaded) {
-                                toDownload.add(index);
-                              }
-                            });
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          selectionStarted = true;
+                          if (!alreadyDownloaded) {
+                            toDownload.add(index);
                           }
-                        },
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedImage(imageUrl: imageUrl),
-                            Positioned(
-                              top: 10,
-                              right: 10,
-                              child: DownloadedStatus(
-                                show: selectionStarted,
-                                toBeDownloaded: toBeDownloaded,
-                                alreadyDownloaded: alreadyDownloaded,
-                              ),
-                            )
-                          ],
+                        });
+                      }
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedImage(imageUrl: imageUrl),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child: DownloadedStatus(
+                            show: selectionStarted,
+                            toBeDownloaded: toBeDownloaded,
+                            alreadyDownloaded: alreadyDownloaded,
+                          ),
                         ),
-                      ),
-                    );
-                  });
-            }),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
         Positioned(
           right: 15,
           bottom: 15,
@@ -196,80 +206,82 @@ class _VideosState extends State<Videos> {
             children: [
               if (selectionStarted)
                 Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
-                      color: theme.colorScheme.secondary,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: theme.colorScheme.secondary,
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        selectionStarted = false;
+                        toDownload.clear();
+                      });
+                    },
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      color: theme.colorScheme.onSecondary,
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          selectionStarted = false;
-                          toDownload.clear();
-                        });
-                      },
-                      icon: Icon(
-                        Icons.cancel_outlined,
-                        color: theme.colorScheme.onSecondary,
-                      ),
-                    ))
+                  ),
+                )
               else
                 Container(),
               const SizedBox(height: 15),
               Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    color: theme.colorScheme.primary,
-                  ),
-                  child: IconButton(
-                    onPressed: () async {
-                      if (selectionStarted) {
-                        List<HistoryItemsCompanion> histItems = [];
-                        List<String> urls = [];
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  color: theme.colorScheme.primary,
+                ),
+                child: IconButton(
+                  onPressed: () async {
+                    if (selectionStarted) {
+                      List<HistoryItemsCompanion> histItems = [];
+                      List<String> urls = [];
 
-                        final videoIds =
-                            toDownload.map((idx) => videos[idx].id);
-                        await Future.wait(
-                            videoIds.map((id) => api.getVideoInfo(id)));
-                        for (var id in videoIds) {
-                          final video = api.cache.postsInfo[id];
-                          if (video == null) {
-                            continue;
-                          }
+                      final videoIds = toDownload.map((idx) => videos[idx].id);
+                      await Future.wait(
+                        videoIds.map((id) => api.getVideoInfo(id)),
+                      );
+                      for (var id in videoIds) {
+                        final video = api.cache.postsInfo[id];
+                        if (video == null) {
+                          continue;
+                        }
 
-                          final url = video.urls.first;
-                          urls.add(url);
+                        final url = video.urls.first;
+                        urls.add(url);
 
-                          histItems.add(HistoryItemsCompanion.insert(
+                        histItems.add(
+                          HistoryItemsCompanion.insert(
                             postId: video.id.split("_").first,
                             coverImgBytes: Value(
-                                await downloader.getImgBytes(video.displayUrl)),
+                              await downloader.getImgBytes(video.displayUrl),
+                            ),
                             imgUrls: url,
                             username: widget.username,
-                          ));
-                        }
-                        db.saveItemsToHistory(histItems);
-                        downloader.download(
-                          urls,
-                          widget.username,
+                          ),
                         );
-                        setState(() {
-                          selectionStarted = false;
-                          toDownload.clear();
-                        });
-                      } else {
-                        setState(() => selectionStarted = true);
                       }
-                    },
-                    icon: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  )),
+                      db.saveItemsToHistory(histItems);
+                      downloader.download(urls, widget.username);
+                      setState(() {
+                        selectionStarted = false;
+                        toDownload.clear();
+                      });
+                    } else {
+                      setState(() => selectionStarted = true);
+                    }
+                  },
+                  icon: Icon(
+                    Icons.download,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+              ),
             ],
           ),
-        )
+        ),
       ],
     );
   }

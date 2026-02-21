@@ -69,7 +69,7 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
   }
 
   void initializePlayer(String url, String coverImgUrl) async {
-    _videoController = VideoPlayerController.network(url);
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(url));
     await _videoController!.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
@@ -148,10 +148,13 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                                           : const Text(
                                             "Download current image",
                                           ),
-                                  leading:
-                                      currUrl.contains(".mp4")
-                                          ? const Icon(Icons.video_file_rounded)
-                                          : const Icon(Icons.image),
+                                  leading: Icon(
+                                    currUrl.contains(".mp4")
+                                        ? Icons.video_file_rounded
+                                        : Icons.image_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                                 ),
                                 if (currUrl.contains(".mp4"))
                                   ListTile(
@@ -160,12 +163,20 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
                                           coverImages[currIdx],
                                         ]),
                                     title: const Text("Download cover image"),
-                                    leading: const Icon(Icons.image),
+                                    leading: Icon(
+                                      Icons.image_rounded,
+                                      color:
+                                          Theme.of(context).colorScheme.primary,
+                                    ),
                                   ),
                                 ListTile(
                                   onTap: () => Navigator.pop(context, images),
                                   title: const Text("Download entire post"),
-                                  leading: const Icon(Icons.collections),
+                                  leading: Icon(
+                                    Icons.collections_rounded,
+                                    color:
+                                        Theme.of(context).colorScheme.primary,
+                                  ),
                                 ),
                               ],
                             ),
@@ -453,10 +464,11 @@ class _PostScreenState extends State<PostScreen> with TickerProviderStateMixin {
       controller: _pageController,
       count: imagesLength,
       effect: ScrollingDotsEffect(
-        dotWidth: 10,
-        dotHeight: 10,
-        dotColor: Colors.grey.shade800,
-        activeDotColor: Colors.deepPurple.shade900,
+        dotWidth: 8,
+        dotHeight: 8,
+        spacing: 6,
+        dotColor: Colors.white24,
+        activeDotColor: Theme.of(context).colorScheme.primary,
       ),
       onDotClicked:
           (index) => _pageController.animateToPage(

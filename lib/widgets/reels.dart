@@ -46,10 +46,7 @@ class _ReelsState extends State<Reels> {
     if (_scrollController.position.extentAfter == 0) {
       final api = Provider.of<Api>(context, listen: false);
 
-      await api.getReels(
-        widget.username,
-        endCursor: endCursor!,
-      );
+      await api.getReels(widget.username, endCursor: endCursor!);
     }
   }
 
@@ -63,9 +60,7 @@ class _ReelsState extends State<Reels> {
     final reels = api.cache.reels[widget.username];
     if (reels == null) {
       api.getReels(widget.username);
-      return const Center(
-        child: CircularProgressIndicator(),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
     final items = reels.edges;
 
@@ -82,96 +77,102 @@ class _ReelsState extends State<Reels> {
     return Stack(
       children: [
         GridView.builder(
-            itemCount: hasMoreReels ? items.length + 1 : items.length,
-            controller: _scrollController,
-            gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-              crossAxisCount: 3,
-              childAspectRatio: 9 / 16,
-            ),
-            itemBuilder: (context, index) {
-              if (hasMoreReels && index == items.length) {
-                return const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 32),
-                  child: Center(child: CircularProgressIndicator()),
-                );
-              }
+          itemCount: hasMoreReels ? items.length + 1 : items.length,
+          controller: _scrollController,
+          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+            crossAxisCount: 3,
+            childAspectRatio: 9 / 16,
+            crossAxisSpacing: 2,
+            mainAxisSpacing: 2,
+          ),
+          itemBuilder: (context, index) {
+            if (hasMoreReels && index == items.length) {
+              return const Padding(
+                padding: EdgeInsets.symmetric(vertical: 32),
+                child: Center(child: CircularProgressIndicator()),
+              );
+            }
 
-              final reel = items[index];
-              final imageUrl = reel.displayUrl;
-              final toBeDownloaded = toDownload.contains(index);
-              return FutureBuilder<bool>(
-                  future: db.isPostDownloaded(reel.id),
-                  builder: (context, snap) {
-                    if (!snap.hasData) {
-                      return const Center(child: CircularProgressIndicator());
-                    }
+            final reel = items[index];
+            final imageUrl = reel.displayUrl;
+            final toBeDownloaded = toDownload.contains(index);
+            return FutureBuilder<bool>(
+              future: db.isPostDownloaded(reel.id),
+              builder: (context, snap) {
+                if (!snap.hasData) {
+                  return const Center(child: CircularProgressIndicator());
+                }
 
-                    final bool alreadyDownloaded = snap.data!;
-                    return Hero(
-                      tag: "reel-${reel.id}",
-                      child: GestureDetector(
-                        onTap: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
+                final bool alreadyDownloaded = snap.data!;
+                return Hero(
+                  tag: "reel-${reel.id}",
+                  child: GestureDetector(
+                    onTap: () {
+                      if (selectionStarted) {
+                        if (!alreadyDownloaded) {
+                          setState(() {
+                            if (toBeDownloaded) {
+                              toDownload.remove(index);
+                            } else {
+                              toDownload.add(index);
                             }
-                          } else {
-                            Navigator.pushNamed(
-                              context,
-                              ReelScreen.routeName,
-                              arguments: ReelScreenArguments(
-                                reel: reel,
-                                username: widget.username,
-                              ),
-                            );
-                          }
-                        },
-                        onLongPress: () {
-                          if (selectionStarted) {
-                            if (!alreadyDownloaded) {
-                              setState(() {
-                                if (toBeDownloaded) {
-                                  toDownload.remove(index);
-                                } else {
-                                  toDownload.add(index);
-                                }
-                              });
+                          });
+                        }
+                      } else {
+                        Navigator.pushNamed(
+                          context,
+                          ReelScreen.routeName,
+                          arguments: ReelScreenArguments(
+                            reel: reel,
+                            username: widget.username,
+                          ),
+                        );
+                      }
+                    },
+                    onLongPress: () {
+                      if (selectionStarted) {
+                        if (!alreadyDownloaded) {
+                          setState(() {
+                            if (toBeDownloaded) {
+                              toDownload.remove(index);
+                            } else {
+                              toDownload.add(index);
                             }
-                          } else {
-                            setState(() {
-                              selectionStarted = true;
-                              if (!alreadyDownloaded) {
-                                toDownload.add(index);
-                              }
-                            });
+                          });
+                        }
+                      } else {
+                        setState(() {
+                          selectionStarted = true;
+                          if (!alreadyDownloaded) {
+                            toDownload.add(index);
                           }
-                        },
-                        child: Stack(
-                          fit: StackFit.expand,
-                          children: [
-                            CachedImage(imageUrl: imageUrl),
-                            Positioned(
-                                top: 10,
-                                right: 10,
-                                child: selectionStarted
-                                    ? DownloadedStatus(
-                                        show: selectionStarted,
-                                        toBeDownloaded: toBeDownloaded,
-                                        alreadyDownloaded: alreadyDownloaded,
-                                      )
-                                    : Container())
-                          ],
+                        });
+                      }
+                    },
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        CachedImage(imageUrl: imageUrl),
+                        Positioned(
+                          top: 10,
+                          right: 10,
+                          child:
+                              selectionStarted
+                                  ? DownloadedStatus(
+                                    show: selectionStarted,
+                                    toBeDownloaded: toBeDownloaded,
+                                    alreadyDownloaded: alreadyDownloaded,
+                                  )
+                                  : Container(),
                         ),
-                      ),
-                    );
-                  });
-            }),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            );
+          },
+        ),
         Positioned(
           right: 15,
           bottom: 15,
@@ -179,70 +180,72 @@ class _ReelsState extends State<Reels> {
             children: [
               if (selectionStarted)
                 Container(
-                    padding: const EdgeInsets.all(5),
-                    decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(25),
-                      color: theme.colorScheme.secondary,
+                  padding: const EdgeInsets.all(5),
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(25),
+                    color: theme.colorScheme.secondary,
+                  ),
+                  child: IconButton(
+                    onPressed: () {
+                      setState(() {
+                        selectionStarted = false;
+                        toDownload.clear();
+                      });
+                    },
+                    icon: Icon(
+                      Icons.cancel_outlined,
+                      color: theme.colorScheme.onSecondary,
                     ),
-                    child: IconButton(
-                      onPressed: () {
-                        setState(() {
-                          selectionStarted = false;
-                          toDownload.clear();
-                        });
-                      },
-                      icon: Icon(
-                        Icons.cancel_outlined,
-                        color: theme.colorScheme.onSecondary,
-                      ),
-                    ))
+                  ),
+                )
               else
                 Container(),
               const SizedBox(height: 15),
               Container(
-                  padding: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(25),
-                    color: theme.colorScheme.primary,
-                  ),
-                  child: IconButton(
-                    onPressed: () async {
-                      if (selectionStarted) {
-                        List<HistoryItemsCompanion> histItems = [];
-                        List<String> urls = [];
-                        for (var idx in toDownload) {
-                          final reel = items[idx];
-                          final videoUrl = reel.urls.first;
-                          urls.add(videoUrl);
-                          histItems.add(HistoryItemsCompanion.insert(
+                padding: const EdgeInsets.all(5),
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(25),
+                  color: theme.colorScheme.primary,
+                ),
+                child: IconButton(
+                  onPressed: () async {
+                    if (selectionStarted) {
+                      List<HistoryItemsCompanion> histItems = [];
+                      List<String> urls = [];
+                      for (var idx in toDownload) {
+                        final reel = items[idx];
+                        final videoUrl = reel.urls.first;
+                        urls.add(videoUrl);
+                        histItems.add(
+                          HistoryItemsCompanion.insert(
                             postId: reel.id,
                             coverImgBytes: Value(
-                                await downloader.getImgBytes(reel.displayUrl)),
+                              await downloader.getImgBytes(reel.displayUrl),
+                            ),
                             imgUrls: videoUrl,
                             username: widget.username,
-                          ));
-                        }
-                        db.saveItemsToHistory(histItems);
-                        downloader.download(
-                          urls,
-                          widget.username,
+                          ),
                         );
-                        setState(() {
-                          selectionStarted = false;
-                          toDownload.clear();
-                        });
-                      } else {
-                        setState(() => selectionStarted = true);
                       }
-                    },
-                    icon: Icon(
-                      Icons.download,
-                      color: theme.colorScheme.onPrimary,
-                    ),
-                  )),
+                      db.saveItemsToHistory(histItems);
+                      downloader.download(urls, widget.username);
+                      setState(() {
+                        selectionStarted = false;
+                        toDownload.clear();
+                      });
+                    } else {
+                      setState(() => selectionStarted = true);
+                    }
+                  },
+                  icon: Icon(
+                    Icons.download,
+                    color: theme.colorScheme.onPrimary,
+                  ),
+                ),
+              ),
             ],
           ),
-        )
+        ),
       ],
     );
   }

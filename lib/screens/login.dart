@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
+import 'package:downsta/theme.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key, this.addingUser}) : super(key: key);
@@ -22,6 +23,8 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passwordFieldController = TextEditingController();
 
   bool loading = true;
+  bool _submitting = false;
+  bool _obscurePassword = true;
 
   @override
   void initState() {
@@ -64,89 +67,210 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     if (loading) {
-      return const Center(child: CircularProgressIndicator());
+      return Scaffold(
+        body: Container(
+          decoration: const BoxDecoration(
+            gradient: LinearGradient(
+              begin: Alignment.topLeft,
+              end: Alignment.bottomRight,
+              colors: [
+                AppTheme.surface,
+                Color(0xFF12121E),
+                Color(0xFF151520),
+                AppTheme.surface,
+              ],
+              stops: [0.0, 0.3, 0.7, 1.0],
+            ),
+          ),
+          child: const Center(child: CircularProgressIndicator()),
+        ),
+      );
     }
 
+    final theme = Theme.of(context);
     final screenSize = MediaQuery.of(context).size;
 
     return Scaffold(
-      body: Center(
-        child: Container(
-          constraints: BoxConstraints(
-            maxHeight: screenSize.height * 0.6,
-            maxWidth: screenSize.width * 0.75,
+      body: Container(
+        width: double.infinity,
+        height: double.infinity,
+        decoration: const BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppTheme.surface,
+              Color(0xFF12121E),
+              Color(0xFF151520),
+              AppTheme.surface,
+            ],
+            stops: [0.0, 0.3, 0.7, 1.0],
           ),
-          child: Form(
-            key: _formKey,
-            autovalidateMode: AutovalidateMode.onUserInteraction,
-            child: Column(
-              children: [
-                Image.asset(
-                  "assets/icon.png",
-                  height: 100,
-                  width: 100,
-                  fit: BoxFit.cover,
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.symmetric(horizontal: 28),
+              child: ConstrainedBox(
+                constraints: BoxConstraints(
+                  maxWidth: screenSize.width > 600 ? 420 : double.infinity,
                 ),
-                Text(
-                  "Login",
-                  style: TextStyle(
-                    fontSize: 35,
-                    fontWeight: FontWeight.bold,
-                    color: Theme.of(context).colorScheme.primary,
-                  ),
-                ),
-                const SizedBox(height: 20),
-                const Row(
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.person, size: 15),
-                    SizedBox(width: 5),
-                    Text("Username", style: TextStyle(fontSize: 15)),
+                    // ── Logo & Title ──
+                    Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: theme.colorScheme.primary.withValues(
+                          alpha: 0.08,
+                        ),
+                      ),
+                      child: Image.asset(
+                        "assets/icon.png",
+                        height: 72,
+                        width: 72,
+                        fit: BoxFit.cover,
+                      ),
+                    ),
+                    const SizedBox(height: 20),
+                    Text(
+                      "Downsta",
+                      style: AppTheme.displayFont.copyWith(fontSize: 36),
+                    ),
+                    const SizedBox(height: 6),
+                    Text(
+                      "Sign in to continue",
+                      style: theme.textTheme.bodyMedium?.copyWith(
+                        color: theme.colorScheme.onSurfaceVariant,
+                      ),
+                    ),
+                    const SizedBox(height: 40),
+
+                    // ── Login Card ──
+                    Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(
+                        color: AppTheme.surfaceContainer.withValues(alpha: 0.7),
+                        borderRadius: BorderRadius.circular(24),
+                        border: Border.all(
+                          color: AppTheme.outline.withValues(alpha: 0.3),
+                        ),
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black.withValues(alpha: 0.2),
+                            blurRadius: 30,
+                            offset: const Offset(0, 10),
+                          ),
+                        ],
+                      ),
+                      child: Form(
+                        key: _formKey,
+                        autovalidateMode: AutovalidateMode.onUserInteraction,
+                        child: Column(
+                          children: [
+                            TextFormField(
+                              controller: _usernameFieldController,
+                              style: theme.textTheme.bodyLarge,
+                              decoration: InputDecoration(
+                                hintText: "Username",
+                                prefixIcon: Icon(
+                                  Icons.person_outline_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  size: 20,
+                                ),
+                              ),
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Username is required!";
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 16),
+                            TextFormField(
+                              controller: _passwordFieldController,
+                              obscureText: _obscurePassword,
+                              style: theme.textTheme.bodyLarge,
+                              decoration: InputDecoration(
+                                hintText: "Password",
+                                prefixIcon: Icon(
+                                  Icons.lock_outline_rounded,
+                                  color: theme.colorScheme.onSurfaceVariant,
+                                  size: 20,
+                                ),
+                                suffixIcon: IconButton(
+                                  icon: Icon(
+                                    _obscurePassword
+                                        ? Icons.visibility_off_outlined
+                                        : Icons.visibility_outlined,
+                                    size: 20,
+                                    color: theme.colorScheme.onSurfaceVariant,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _obscurePassword = !_obscurePassword;
+                                    });
+                                  },
+                                ),
+                              ),
+                              validator: (String? value) {
+                                if (value == null || value.isEmpty) {
+                                  return "Password is required!";
+                                }
+                                return null;
+                              },
+                            ),
+                            const SizedBox(height: 28),
+                            SizedBox(
+                              width: double.infinity,
+                              height: 52,
+                              child: ElevatedButton(
+                                onPressed: _submitting ? null : handleLogin,
+                                child:
+                                    _submitting
+                                        ? SizedBox(
+                                          width: 22,
+                                          height: 22,
+                                          child: CircularProgressIndicator(
+                                            strokeWidth: 2.5,
+                                            color: theme.colorScheme.onPrimary,
+                                          ),
+                                        )
+                                        : Row(
+                                          mainAxisSize: MainAxisSize.min,
+                                          children: [
+                                            Icon(
+                                              Icons.login_rounded,
+                                              size: 20,
+                                              color:
+                                                  theme.colorScheme.onPrimary,
+                                            ),
+                                            const SizedBox(width: 10),
+                                            Text(
+                                              "Sign In",
+                                              style: theme.textTheme.labelLarge
+                                                  ?.copyWith(
+                                                    color:
+                                                        theme
+                                                            .colorScheme
+                                                            .onPrimary,
+                                                    fontWeight: FontWeight.w700,
+                                                  ),
+                                            ),
+                                          ],
+                                        ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: 24),
                   ],
                 ),
-                TextFormField(
-                  controller: _usernameFieldController,
-                  decoration: const InputDecoration(
-                    hintText: "Enter your username",
-                  ),
-                  validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return "Username is required!";
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                const Row(
-                  children: [
-                    Icon(Icons.lock, size: 15),
-                    SizedBox(width: 5),
-                    Text("Password", style: TextStyle(fontSize: 15)),
-                  ],
-                ),
-                TextFormField(
-                  controller: _passwordFieldController,
-                  decoration: const InputDecoration(
-                    hintText: "Enter your password",
-                  ),
-                  obscureText: true,
-                  validator: (String? value) {
-                    if (value == null || value.isEmpty) {
-                      return "Password is required!";
-                    }
-                    return null;
-                  },
-                ),
-                const SizedBox(height: 20),
-                ElevatedButton.icon(
-                  onPressed: handleLogin,
-                  icon: const Icon(Icons.arrow_right_rounded, size: 25),
-                  label: const Text("Submit"),
-                  style: ElevatedButton.styleFrom(
-                    elevation: 0,
-                    textStyle: const TextStyle(fontWeight: FontWeight.bold),
-                  ),
-                ),
-              ],
+              ),
             ),
           ),
         ),
@@ -158,6 +282,8 @@ class _LoginScreenState extends State<LoginScreen> {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    setState(() => _submitting = true);
 
     final snackbarController = ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
@@ -173,9 +299,14 @@ class _LoginScreenState extends State<LoginScreen> {
       _passwordFieldController.text,
     );
     snackbarController.close();
+
     if (res == null) {
       gotoHomeScreen();
       return;
+    }
+
+    if (mounted) {
+      setState(() => _submitting = false);
     }
 
     showDialog<void>(

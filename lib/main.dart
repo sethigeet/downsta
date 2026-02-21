@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 
 import 'package:downsta/globals.dart';
+import 'package:downsta/theme.dart';
 import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
 
@@ -26,7 +27,8 @@ Future main() async {
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(
-            value: await Api.create(lastLoggedInUser, db)),
+          value: await Api.create(lastLoggedInUser, db),
+        ),
         Provider<DB>(
           create: (context) => db,
           dispose: (context, db) => db.close(),
@@ -55,8 +57,8 @@ class _MyAppState extends State<MyApp> {
       WidgetsBinding.instance.addPostFrameCallback((_) async {
         if (await Permission.storage.request().isGranted) {
         } else if (await Permission.speech.isPermanentlyDenied) {
-          // ignore: use_build_context_synchronously
           showDialog<void>(
+            // ignore: use_build_context_synchronously
             context: context,
             barrierDismissible: false,
             builder: (BuildContext context) {
@@ -66,7 +68,8 @@ class _MyAppState extends State<MyApp> {
                   child: ListBody(
                     children: [
                       Text(
-                          "Permission for storage access is required for downloading!"),
+                        "Permission for storage access is required for downloading!",
+                      ),
                     ],
                   ),
                 ),
@@ -89,10 +92,7 @@ class _MyAppState extends State<MyApp> {
     return MaterialApp(
       title: 'Downsta',
       scaffoldMessengerKey: scaffoldMessengerKey,
-      theme: ThemeData(
-        colorSchemeSeed: Colors.deepPurple,
-        brightness: Brightness.dark,
-      ),
+      theme: AppTheme.darkTheme,
       initialRoute: LoginScreen.routeName,
       routes: {
         LoginScreen.routeName: (_) => const LoginScreen(),

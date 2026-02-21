@@ -35,28 +35,28 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
   }
 
   void download(List<String> urls, String username) {
-    queue.addAll(urls.map((url) {
-      final uri = Uri.parse(url);
-      final nameSegs = uri.pathSegments.last.split("_");
-      var ext = nameSegs.last.split(".").last;
-      // NOTE: For some reason, instagram names `jpg` files with the `webp` extension
-      //       So, replace `webp` with `jpg`
-      ext = ext == "webp" ? "jpg" : ext;
-      ext = ext == "jpeg" ? "jpg" : ext;
+    queue.addAll(
+      urls.map((url) {
+        final uri = Uri.parse(url);
+        final nameSegs = uri.pathSegments.last.split("_");
+        var ext = nameSegs.last.split(".").last;
+        // NOTE: For some reason, instagram names `jpg` files with the `webp` extension
+        //       So, replace `webp` with `jpg`
+        ext = ext == "webp" ? "jpg" : ext;
+        ext = ext == "jpeg" ? "jpg" : ext;
 
-      var uniqueId = nameSegs.length == 1
-          ? nameSegs[0].split(".").first
-          : nameSegs[nameSegs.length - 2];
-      if (uniqueId == "video") {
-        uniqueId = uri.queryParameters["vs"]!.split("_").first;
-      }
+        var uniqueId =
+            nameSegs.length == 1
+                ? nameSegs[0].split(".").first
+                : nameSegs[nameSegs.length - 2];
+        if (uniqueId == "video") {
+          uniqueId = uri.queryParameters["vs"]!.split("_").first;
+        }
 
-      // File Name -> <username>_<unique_id>.<file_extension>
-      return DownloadItem(
-        url,
-        "${username}_$uniqueId.$ext",
-      );
-    }).toList());
+        // File Name -> <username>_<unique_id>.<file_extension>
+        return DownloadItem(url, "${username}_$uniqueId.$ext");
+      }).toList(),
+    );
 
     if (!running) {
       _startDownloads();
@@ -123,7 +123,7 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
     scaffoldMessengerKey.currentState!.showSnackBar(
       const SnackBar(
         content: Text("Download completed!"),
-        backgroundColor: Colors.deepPurple,
+        backgroundColor: Color(0xFF3D2E14),
         duration: Duration(seconds: 2),
       ),
     );

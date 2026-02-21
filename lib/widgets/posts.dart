@@ -131,6 +131,8 @@ class _PostsState extends State<Posts> {
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
                 crossAxisCount: 3,
                 childAspectRatio: 1,
+                crossAxisSpacing: 2,
+                mainAxisSpacing: 2,
               ),
               itemBuilder: (context, index) {
                 if (hasMorePosts && index == posts.length) {

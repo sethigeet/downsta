@@ -19,10 +19,7 @@ class ReelScreenArguments {
   Reel reel;
   String username;
 
-  ReelScreenArguments({
-    required this.reel,
-    required this.username,
-  });
+  ReelScreenArguments({required this.reel, required this.username});
 }
 
 class ReelScreen extends StatefulWidget {
@@ -48,8 +45,10 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
   @override
   void dispose() {
     // reset the display state
-    SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-        overlays: SystemUiOverlay.values);
+    SystemChrome.setEnabledSystemUIMode(
+      SystemUiMode.manual,
+      overlays: SystemUiOverlay.values,
+    );
 
     _videoController?.dispose();
     _chewieController?.dispose();
@@ -61,7 +60,7 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
   }
 
   void initializePlayer(String url, String coverImgUrl) async {
-    _videoController = VideoPlayerController.network(url);
+    _videoController = VideoPlayerController.networkUrl(Uri.parse(url));
     await _videoController!.initialize();
     _chewieController = ChewieController(
       videoPlayerController: _videoController!,
@@ -103,84 +102,113 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
         ),
       ),
       extendBodyBehindAppBar: true,
-      floatingActionButton: _currentOpacity == 1
-          ? Container(
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary,
-                borderRadius: BorderRadius.circular(25),
-              ),
-              margin: const EdgeInsets.symmetric(vertical: 25),
-              child: Material(
-                color: Colors.transparent,
-                child: InkWell(
-                  splashColor:
-                      theme.colorScheme.onPrimary.withValues(alpha: 0.3),
+      floatingActionButton:
+          _currentOpacity == 1
+              ? Container(
+                decoration: BoxDecoration(
+                  color: theme.colorScheme.primary,
                   borderRadius: BorderRadius.circular(25),
-                  onLongPress: () async {
-                    final toDownload = await showModalBottomSheet<List<String>>(
+                ),
+                margin: const EdgeInsets.symmetric(vertical: 25),
+                child: Material(
+                  color: Colors.transparent,
+                  child: InkWell(
+                    splashColor: theme.colorScheme.onPrimary.withValues(
+                      alpha: 0.3,
+                    ),
+                    borderRadius: BorderRadius.circular(25),
+                    onLongPress: () async {
+                      final toDownload = await showModalBottomSheet<
+                        List<String>
+                      >(
                         context: context,
                         builder: (context) {
                           return SizedBox(
                             height: 150,
-                            child: Column(children: [
-                              ListTile(
-                                  onTap: () =>
-                                      Navigator.pop(context, [videoUrl]),
+                            child: Column(
+                              children: [
+                                ListTile(
+                                  onTap:
+                                      () => Navigator.pop(context, [videoUrl]),
                                   title: const Text("Download video"),
-                                  leading:
-                                      const Icon(Icons.video_file_rounded)),
-                              ListTile(
-                                  onTap: () =>
-                                      Navigator.pop(context, [coverImgUrl]),
+                                  leading: Icon(
+                                    Icons.video_file_rounded,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                ListTile(
+                                  onTap:
+                                      () =>
+                                          Navigator.pop(context, [coverImgUrl]),
                                   title: const Text("Download cover image"),
-                                  leading: const Icon(Icons.image)),
-                              ListTile(
-                                  onTap: () => Navigator.pop(
-                                      context, [coverImgUrl, videoUrl]),
+                                  leading: Icon(
+                                    Icons.image_rounded,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                                ListTile(
+                                  onTap:
+                                      () => Navigator.pop(context, [
+                                        coverImgUrl,
+                                        videoUrl,
+                                      ]),
                                   title: const Text("Download both"),
-                                  leading: const Icon(Icons.collections)),
-                            ]),
+                                  leading: Icon(
+                                    Icons.collections_rounded,
+                                    color: theme.colorScheme.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           );
-                        });
-
-                    if (toDownload != null) {
-                      if (toDownload.contains(videoUrl)) {
-                        db.saveItemToHistory(HistoryItemsCompanion.insert(
-                          postId: reel.id,
-                          coverImgBytes:
-                              Value(await downloader.getImgBytes(coverImgUrl)),
-                          imgUrls: videoUrl,
-                          username: args.username,
-                        ));
-                      }
-                      downloader.download(toDownload, args.username);
-                    }
-                  },
-                  onTap: alreadyDownloaded
-                      ? null
-                      : () async {
-                          downloader.download([videoUrl], args.username);
-                          db.saveItemToHistory(HistoryItemsCompanion.insert(
-                            postId: reel.id,
-                            coverImgBytes: Value(
-                                await downloader.getImgBytes(coverImgUrl)),
-                            imgUrls: videoUrl,
-                            username: args.username,
-                          ));
                         },
-                  child: Container(
-                    padding: const EdgeInsets.all(10),
-                    child: Icon(
-                      alreadyDownloaded
-                          ? Icons.download_done_rounded
-                          : Icons.download,
-                      color: theme.colorScheme.onPrimary,
+                      );
+
+                      if (toDownload != null) {
+                        if (toDownload.contains(videoUrl)) {
+                          db.saveItemToHistory(
+                            HistoryItemsCompanion.insert(
+                              postId: reel.id,
+                              coverImgBytes: Value(
+                                await downloader.getImgBytes(coverImgUrl),
+                              ),
+                              imgUrls: videoUrl,
+                              username: args.username,
+                            ),
+                          );
+                        }
+                        downloader.download(toDownload, args.username);
+                      }
+                    },
+                    onTap:
+                        alreadyDownloaded
+                            ? null
+                            : () async {
+                              downloader.download([videoUrl], args.username);
+                              db.saveItemToHistory(
+                                HistoryItemsCompanion.insert(
+                                  postId: reel.id,
+                                  coverImgBytes: Value(
+                                    await downloader.getImgBytes(coverImgUrl),
+                                  ),
+                                  imgUrls: videoUrl,
+                                  username: args.username,
+                                ),
+                              );
+                            },
+                    child: Container(
+                      padding: const EdgeInsets.all(10),
+                      child: Icon(
+                        alreadyDownloaded
+                            ? Icons.download_done_rounded
+                            : Icons.download,
+                        color: theme.colorScheme.onPrimary,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            )
-          : null,
+              )
+              : null,
       body: GestureDetector(
         onTap: () {
           if (_currentOpacity > 0) {
@@ -188,19 +216,27 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
             SystemChrome.setEnabledSystemUIMode(SystemUiMode.immersive);
           } else {
             setState(() => _currentOpacity = 1);
-            SystemChrome.setEnabledSystemUIMode(SystemUiMode.manual,
-                overlays: SystemUiOverlay.values);
+            SystemChrome.setEnabledSystemUIMode(
+              SystemUiMode.manual,
+              overlays: SystemUiOverlay.values,
+            );
           }
         },
         child: KeyboardListener(
           focusNode: _keyboardScrollFocusNode,
           onKeyEvent: (event) {
             if (event is KeyDownEvent) {
-              setState(() => _isCtrlPressed =
-                  event.logicalKey == LogicalKeyboardKey.controlLeft);
+              setState(
+                () =>
+                    _isCtrlPressed =
+                        event.logicalKey == LogicalKeyboardKey.controlLeft,
+              );
             } else if (event is KeyUpEvent) {
-              setState(() => _isCtrlPressed =
-                  event.logicalKey != LogicalKeyboardKey.controlLeft);
+              setState(
+                () =>
+                    _isCtrlPressed =
+                        event.logicalKey != LogicalKeyboardKey.controlLeft,
+              );
             }
           },
           child: Listener(
@@ -211,8 +247,10 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
                     event.kind == PointerDeviceKind.mouse) {
                   // for some reason, the delta is the opposite of what is obvious
                   final double delta = (event.scrollDelta.dy * -1) / 1000;
-                  double newScale =
-                      max(0, min((_photoController.scale ?? 1) + delta, 4));
+                  double newScale = max(
+                    0,
+                    min((_photoController.scale ?? 1) + delta, 4),
+                  );
                   _photoController.setScaleInvisibly(newScale);
                 }
 
@@ -231,10 +269,13 @@ class _ReelScreenState extends State<ReelScreen> with TickerProviderStateMixin {
               heroAttributes: PhotoViewHeroAttributes(tag: "reel-${reel.id}"),
               minScale: PhotoViewComputedScale.contained,
               maxScale: PhotoViewComputedScale.covered * 4,
-              child: _chewieController == null
-                  ? buildLoadingWidget(coverImgUrl)
-                  : !_chewieController!
-                          .videoPlayerController.value.isInitialized
+              child:
+                  _chewieController == null
+                      ? buildLoadingWidget(coverImgUrl)
+                      : !_chewieController!
+                          .videoPlayerController
+                          .value
+                          .isInitialized
                       ? buildLoadingWidget(coverImgUrl)
                       : Chewie(controller: _chewieController!),
             ),

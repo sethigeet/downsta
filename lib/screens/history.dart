@@ -26,12 +26,14 @@ class _HistoryScreenState extends State<HistoryScreen> {
     _scrollController.addListener(_scrollListener);
 
     final db = Provider.of<DB>(context, listen: false);
-    db
-        .getHistoryItems()
-        .then((items) => db.getTotalHistoryItems().then((total) => setState(() {
-              historyItems = items;
-              totalHistoryItems = total;
-            })));
+    db.getHistoryItems().then(
+      (items) => db.getTotalHistoryItems().then(
+        (total) => setState(() {
+          historyItems = items;
+          totalHistoryItems = total;
+        }),
+      ),
+    );
   }
 
   @override
@@ -60,19 +62,32 @@ class _HistoryScreenState extends State<HistoryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final db = Provider.of<DB>(context, listen: false);
     return Scaffold(
-      appBar: AppBar(
-        title: const Text("History"),
-      ),
-      body: historyItems == null
-          ? const Center(child: CircularProgressIndicator())
-          : ListView.builder(
-              controller: _scrollController,
-              itemCount: historyItems!.length,
-              itemBuilder: (context, index) {
-                return HistoryItemCard(item: historyItems![index]);
-              },
-            ),
+      appBar: AppBar(title: const Text("Download History")),
+      body:
+          historyItems == null
+              ? const Center(child: CircularProgressIndicator())
+              : historyItems!.isEmpty
+              ? const NoContent(
+                message: "No downloads yet",
+                icon: Icons.download_outlined,
+              )
+              : ListView.builder(
+                controller: _scrollController,
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                physics: const BouncingScrollPhysics(
+                  parent: AlwaysScrollableScrollPhysics(),
+                ),
+                itemCount: historyItems!.length,
+                itemBuilder: (context, index) {
+                  final item = historyItems![index];
+                  return HistoryItemCard(
+                    item: item,
+                    onDelete: () => db.deleteItemFromHistory(item.id),
+                  );
+                },
+              ),
     );
   }
 }

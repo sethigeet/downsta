@@ -41,11 +41,12 @@ class _FollowingState extends State<Following> {
       final api = Provider.of<Api>(context, listen: false);
 
       await api.get<Profile>(
-          queryHash: ApiQueryHashes.following,
-          params: {"id": await api.getUserId(api.username), "after": endCursor},
-          resExtractor: (res) => res["user"]["edge_follow"],
-          cacheExtractor: (cache) => cache.following!,
-          nodeConverter: (node) => Profile(node));
+        queryHash: ApiQueryHashes.following,
+        params: {"id": await api.getUserId(api.username), "after": endCursor},
+        resExtractor: (res) => res["user"]["edge_follow"],
+        cacheExtractor: (cache) => cache.following!,
+        nodeConverter: (node) => Profile(node),
+      );
     }
   }
 
@@ -53,23 +54,23 @@ class _FollowingState extends State<Following> {
   Widget build(BuildContext context) {
     final api = context.watch<Api>();
     if (api.cache.following == null) {
-      api.getUserId(api.username).then((userId) => api.get<Profile>(
-            queryHash: ApiQueryHashes.following,
-            params: {"id": userId},
-            resExtractor: (res) => res["user"]["edge_follow"],
-            cacheExtractor: (cache) => cache.following,
-            nodeConverter: (node) => Profile(node),
-            initial: true,
-            cacheInitializer: (cache) =>
-                cache.following = PaginatedResponse<Profile>.empty(),
-          ));
+      api
+          .getUserId(api.username)
+          .then(
+            (userId) => api.get<Profile>(
+              queryHash: ApiQueryHashes.following,
+              params: {"id": userId},
+              resExtractor: (res) => res["user"]["edge_follow"],
+              cacheExtractor: (cache) => cache.following,
+              nodeConverter: (node) => Profile(node),
+              initial: true,
+              cacheInitializer:
+                  (cache) =>
+                      cache.following = PaginatedResponse<Profile>.empty(),
+            ),
+          );
 
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text("Downsta"),
-        ),
-        body: const Center(child: CircularProgressIndicator()),
-      );
+      return const Center(child: CircularProgressIndicator());
     }
 
     final users = api.cache.following!.edges;
@@ -77,20 +78,23 @@ class _FollowingState extends State<Following> {
     endCursor = api.cache.following!.endCursor;
 
     return ListView.builder(
-        controller: _scrollController,
-        physics: const BouncingScrollPhysics(
-            parent: AlwaysScrollableScrollPhysics()),
-        itemCount: users.length + (hasMorePosts ? 1 : 0),
-        itemBuilder: (context, index) {
-          if (index == users.length) {
-            return const Center(child: CircularProgressIndicator());
-          }
+      controller: _scrollController,
+      physics: const BouncingScrollPhysics(
+        parent: AlwaysScrollableScrollPhysics(),
+      ),
+      itemCount: users.length + (hasMorePosts ? 1 : 0),
+      itemBuilder: (context, index) {
+        if (index == users.length) {
+          return const Center(child: CircularProgressIndicator());
+        }
 
-          var user = users[index];
-          return UserCard(
-              fullName: user.fullName,
-              username: user.username,
-              profilePicUrl: user.profilePicUrl);
-        });
+        var user = users[index];
+        return UserCard(
+          fullName: user.fullName,
+          username: user.username,
+          profilePicUrl: user.profilePicUrl,
+        );
+      },
+    );
   }
 }
