@@ -406,7 +406,6 @@ class MyDrawer extends StatelessWidget {
                     ).showSnackBar(
                       SnackBar(
                         content: const Text("Logging out..."),
-                        backgroundColor: Theme.of(context).colorScheme.primary,
                         duration: const Duration(days: 365),
                       ),
                     );

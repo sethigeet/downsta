@@ -123,7 +123,6 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
     scaffoldMessengerKey.currentState!.showSnackBar(
       const SnackBar(
         content: Text("Download completed!"),
-        backgroundColor: Color(0xFF3D2E14),
         duration: Duration(seconds: 2),
       ),
     );

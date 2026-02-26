@@ -38,7 +38,6 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 ).showSnackBar(
                   SnackBar(
                     content: const Text("Fetching high quality profile pic..."),
-                    backgroundColor: theme.colorScheme.primary,
                     duration: const Duration(days: 365),
                   ),
                 );

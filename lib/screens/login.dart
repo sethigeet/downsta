@@ -288,7 +288,6 @@ class _LoginScreenState extends State<LoginScreen> {
     final snackbarController = ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(
         content: const Text("Trying to log in..."),
-        backgroundColor: Theme.of(context).colorScheme.primary,
         duration: const Duration(days: 365),
       ),
     );
