@@ -13,8 +13,9 @@ import 'package:downsta/utils.dart';
 class DownloadItem {
   String url;
   String filename;
+  String username;
 
-  DownloadItem(this.url, this.filename);
+  DownloadItem(this.url, this.filename, this.username);
 }
 
 class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
@@ -23,15 +24,23 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
   final DB db;
   Queue<DownloadItem> queue;
   bool running = false;
+  bool _organizeByUsername = true;
 
   static const batchSize = 5;
 
-  Downloader(this.queue, this.downloadDir, this.db);
+  Downloader(this.queue, this.downloadDir, this.db, this._organizeByUsername);
 
   static Future<Downloader> create(DB db) async {
     final dir = await getDownloadsDir();
+    final organizeByUsername = await db.getOrganizeByUsername();
 
-    return Downloader(Queue(), "$dir/downsta", db);
+    return Downloader(Queue(), "$dir/downsta", db, organizeByUsername);
+  }
+
+  bool get organizeByUsername => _organizeByUsername;
+
+  void setOrganizeByUsername(bool value) {
+    _organizeByUsername = value;
   }
 
   void download(List<String> urls, String username) {
@@ -54,7 +63,8 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
         }
 
         // File Name -> <username>_<unique_id>.<file_extension>
-        return DownloadItem(url, "${username}_$uniqueId.$ext");
+        final filename = "${username}_$uniqueId.$ext";
+        return DownloadItem(url, filename, username);
       }).toList(),
     );
 
@@ -102,7 +112,10 @@ class Downloader with ChangeNotifier, DiagnosticableTreeMixin {
 
       if (result is FileInfo) {
         var file = result.file;
-        await file.copy("$downloadDir/${item.filename}");
+        final targetDir =
+            organizeByUsername ? "$downloadDir/${item.username}" : downloadDir;
+        await Directory(targetDir).create(recursive: true);
+        await file.copy("$targetDir/${item.filename}");
       }
     }
   }

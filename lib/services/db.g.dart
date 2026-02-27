@@ -470,8 +470,27 @@ class $PreferencesTable extends Preferences
     type: DriftSqlType.string,
     requiredDuringInsert: false,
   );
+  static const VerificationMeta _organizeByUsernameMeta =
+      const VerificationMeta('organizeByUsername');
   @override
-  List<GeneratedColumn> get $columns => [id, lastLoggedInUser, loggedInUsers];
+  late final GeneratedColumn<bool> organizeByUsername = GeneratedColumn<bool>(
+    'organize_by_username',
+    aliasedName,
+    false,
+    type: DriftSqlType.bool,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'CHECK ("organize_by_username" IN (0, 1))',
+    ),
+    defaultValue: const Constant(true),
+  );
+  @override
+  List<GeneratedColumn> get $columns => [
+    id,
+    lastLoggedInUser,
+    loggedInUsers,
+    organizeByUsername,
+  ];
   @override
   String get aliasedName => _alias ?? actualTableName;
   @override
@@ -505,6 +524,15 @@ class $PreferencesTable extends Preferences
         ),
       );
     }
+    if (data.containsKey('organize_by_username')) {
+      context.handle(
+        _organizeByUsernameMeta,
+        organizeByUsername.isAcceptableOrUnknown(
+          data['organize_by_username']!,
+          _organizeByUsernameMeta,
+        ),
+      );
+    }
     return context;
   }
 
@@ -527,6 +555,11 @@ class $PreferencesTable extends Preferences
         DriftSqlType.string,
         data['${effectivePrefix}logged_in_users'],
       ),
+      organizeByUsername:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.bool,
+            data['${effectivePrefix}organize_by_username'],
+          )!,
     );
   }
 
@@ -540,10 +573,12 @@ class Preference extends DataClass implements Insertable<Preference> {
   final int id;
   final String? lastLoggedInUser;
   final String? loggedInUsers;
+  final bool organizeByUsername;
   const Preference({
     required this.id,
     this.lastLoggedInUser,
     this.loggedInUsers,
+    required this.organizeByUsername,
   });
   @override
   Map<String, Expression> toColumns(bool nullToAbsent) {
@@ -555,6 +590,7 @@ class Preference extends DataClass implements Insertable<Preference> {
     if (!nullToAbsent || loggedInUsers != null) {
       map['logged_in_users'] = Variable<String>(loggedInUsers);
     }
+    map['organize_by_username'] = Variable<bool>(organizeByUsername);
     return map;
   }
 
@@ -569,6 +605,7 @@ class Preference extends DataClass implements Insertable<Preference> {
           loggedInUsers == null && nullToAbsent
               ? const Value.absent()
               : Value(loggedInUsers),
+      organizeByUsername: Value(organizeByUsername),
     );
   }
 
@@ -581,6 +618,7 @@ class Preference extends DataClass implements Insertable<Preference> {
       id: serializer.fromJson<int>(json['id']),
       lastLoggedInUser: serializer.fromJson<String?>(json['lastLoggedInUser']),
       loggedInUsers: serializer.fromJson<String?>(json['loggedInUsers']),
+      organizeByUsername: serializer.fromJson<bool>(json['organizeByUsername']),
     );
   }
   @override
@@ -590,6 +628,7 @@ class Preference extends DataClass implements Insertable<Preference> {
       'id': serializer.toJson<int>(id),
       'lastLoggedInUser': serializer.toJson<String?>(lastLoggedInUser),
       'loggedInUsers': serializer.toJson<String?>(loggedInUsers),
+      'organizeByUsername': serializer.toJson<bool>(organizeByUsername),
     };
   }
 
@@ -597,6 +636,7 @@ class Preference extends DataClass implements Insertable<Preference> {
     int? id,
     Value<String?> lastLoggedInUser = const Value.absent(),
     Value<String?> loggedInUsers = const Value.absent(),
+    bool? organizeByUsername,
   }) => Preference(
     id: id ?? this.id,
     lastLoggedInUser:
@@ -605,6 +645,7 @@ class Preference extends DataClass implements Insertable<Preference> {
             : this.lastLoggedInUser,
     loggedInUsers:
         loggedInUsers.present ? loggedInUsers.value : this.loggedInUsers,
+    organizeByUsername: organizeByUsername ?? this.organizeByUsername,
   );
   Preference copyWithCompanion(PreferencesCompanion data) {
     return Preference(
@@ -617,6 +658,10 @@ class Preference extends DataClass implements Insertable<Preference> {
           data.loggedInUsers.present
               ? data.loggedInUsers.value
               : this.loggedInUsers,
+      organizeByUsername:
+          data.organizeByUsername.present
+              ? data.organizeByUsername.value
+              : this.organizeByUsername,
     );
   }
 
@@ -625,45 +670,54 @@ class Preference extends DataClass implements Insertable<Preference> {
     return (StringBuffer('Preference(')
           ..write('id: $id, ')
           ..write('lastLoggedInUser: $lastLoggedInUser, ')
-          ..write('loggedInUsers: $loggedInUsers')
+          ..write('loggedInUsers: $loggedInUsers, ')
+          ..write('organizeByUsername: $organizeByUsername')
           ..write(')'))
         .toString();
   }
 
   @override
-  int get hashCode => Object.hash(id, lastLoggedInUser, loggedInUsers);
+  int get hashCode =>
+      Object.hash(id, lastLoggedInUser, loggedInUsers, organizeByUsername);
   @override
   bool operator ==(Object other) =>
       identical(this, other) ||
       (other is Preference &&
           other.id == this.id &&
           other.lastLoggedInUser == this.lastLoggedInUser &&
-          other.loggedInUsers == this.loggedInUsers);
+          other.loggedInUsers == this.loggedInUsers &&
+          other.organizeByUsername == this.organizeByUsername);
 }
 
 class PreferencesCompanion extends UpdateCompanion<Preference> {
   final Value<int> id;
   final Value<String?> lastLoggedInUser;
   final Value<String?> loggedInUsers;
+  final Value<bool> organizeByUsername;
   const PreferencesCompanion({
     this.id = const Value.absent(),
     this.lastLoggedInUser = const Value.absent(),
     this.loggedInUsers = const Value.absent(),
+    this.organizeByUsername = const Value.absent(),
   });
   PreferencesCompanion.insert({
     this.id = const Value.absent(),
     this.lastLoggedInUser = const Value.absent(),
     this.loggedInUsers = const Value.absent(),
+    this.organizeByUsername = const Value.absent(),
   });
   static Insertable<Preference> custom({
     Expression<int>? id,
     Expression<String>? lastLoggedInUser,
     Expression<String>? loggedInUsers,
+    Expression<bool>? organizeByUsername,
   }) {
     return RawValuesInsertable({
       if (id != null) 'id': id,
       if (lastLoggedInUser != null) 'last_logged_in_user': lastLoggedInUser,
       if (loggedInUsers != null) 'logged_in_users': loggedInUsers,
+      if (organizeByUsername != null)
+        'organize_by_username': organizeByUsername,
     });
   }
 
@@ -671,11 +725,13 @@ class PreferencesCompanion extends UpdateCompanion<Preference> {
     Value<int>? id,
     Value<String?>? lastLoggedInUser,
     Value<String?>? loggedInUsers,
+    Value<bool>? organizeByUsername,
   }) {
     return PreferencesCompanion(
       id: id ?? this.id,
       lastLoggedInUser: lastLoggedInUser ?? this.lastLoggedInUser,
       loggedInUsers: loggedInUsers ?? this.loggedInUsers,
+      organizeByUsername: organizeByUsername ?? this.organizeByUsername,
     );
   }
 
@@ -691,6 +747,9 @@ class PreferencesCompanion extends UpdateCompanion<Preference> {
     if (loggedInUsers.present) {
       map['logged_in_users'] = Variable<String>(loggedInUsers.value);
     }
+    if (organizeByUsername.present) {
+      map['organize_by_username'] = Variable<bool>(organizeByUsername.value);
+    }
     return map;
   }
 
@@ -699,7 +758,8 @@ class PreferencesCompanion extends UpdateCompanion<Preference> {
     return (StringBuffer('PreferencesCompanion(')
           ..write('id: $id, ')
           ..write('lastLoggedInUser: $lastLoggedInUser, ')
-          ..write('loggedInUsers: $loggedInUsers')
+          ..write('loggedInUsers: $loggedInUsers, ')
+          ..write('organizeByUsername: $organizeByUsername')
           ..write(')'))
         .toString();
   }
@@ -885,13 +945,17 @@ class Cookie extends DataClass implements Insertable<Cookie> {
     };
   }
 
-  Cookie copyWith({int? id, String? username, String? index, String? domains}) =>
-      Cookie(
-        id: id ?? this.id,
-        username: username ?? this.username,
-        index: index ?? this.index,
-        domains: domains ?? this.domains,
-      );
+  Cookie copyWith({
+    int? id,
+    String? username,
+    String? index,
+    String? domains,
+  }) => Cookie(
+    id: id ?? this.id,
+    username: username ?? this.username,
+    index: index ?? this.index,
+    domains: domains ?? this.domains,
+  );
   Cookie copyWithCompanion(CookiesCompanion data) {
     return Cookie(
       id: data.id.present ? data.id.value : this.id,
@@ -1248,12 +1312,14 @@ typedef $$PreferencesTableCreateCompanionBuilder =
       Value<int> id,
       Value<String?> lastLoggedInUser,
       Value<String?> loggedInUsers,
+      Value<bool> organizeByUsername,
     });
 typedef $$PreferencesTableUpdateCompanionBuilder =
     PreferencesCompanion Function({
       Value<int> id,
       Value<String?> lastLoggedInUser,
       Value<String?> loggedInUsers,
+      Value<bool> organizeByUsername,
     });
 
 class $$PreferencesTableFilterComposer
@@ -1277,6 +1343,11 @@ class $$PreferencesTableFilterComposer
 
   ColumnFilters<String> get loggedInUsers => $composableBuilder(
     column: $table.loggedInUsers,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<bool> get organizeByUsername => $composableBuilder(
+    column: $table.organizeByUsername,
     builder: (column) => ColumnFilters(column),
   );
 }
@@ -1304,6 +1375,11 @@ class $$PreferencesTableOrderingComposer
     column: $table.loggedInUsers,
     builder: (column) => ColumnOrderings(column),
   );
+
+  ColumnOrderings<bool> get organizeByUsername => $composableBuilder(
+    column: $table.organizeByUsername,
+    builder: (column) => ColumnOrderings(column),
+  );
 }
 
 class $$PreferencesTableAnnotationComposer
@@ -1325,6 +1401,11 @@ class $$PreferencesTableAnnotationComposer
 
   GeneratedColumn<String> get loggedInUsers => $composableBuilder(
     column: $table.loggedInUsers,
+    builder: (column) => column,
+  );
+
+  GeneratedColumn<bool> get organizeByUsername => $composableBuilder(
+    column: $table.organizeByUsername,
     builder: (column) => column,
   );
 }
@@ -1361,20 +1442,24 @@ class $$PreferencesTableTableManager
                 Value<int> id = const Value.absent(),
                 Value<String?> lastLoggedInUser = const Value.absent(),
                 Value<String?> loggedInUsers = const Value.absent(),
+                Value<bool> organizeByUsername = const Value.absent(),
               }) => PreferencesCompanion(
                 id: id,
                 lastLoggedInUser: lastLoggedInUser,
                 loggedInUsers: loggedInUsers,
+                organizeByUsername: organizeByUsername,
               ),
           createCompanionCallback:
               ({
                 Value<int> id = const Value.absent(),
                 Value<String?> lastLoggedInUser = const Value.absent(),
                 Value<String?> loggedInUsers = const Value.absent(),
+                Value<bool> organizeByUsername = const Value.absent(),
               }) => PreferencesCompanion.insert(
                 id: id,
                 lastLoggedInUser: lastLoggedInUser,
                 loggedInUsers: loggedInUsers,
+                organizeByUsername: organizeByUsername,
               ),
           withReferenceMapper:
               (p0) =>

@@ -5,42 +5,52 @@ import 'package:downsta/models/models.dart';
 
 part 'db.g.dart';
 
-@DriftDatabase(tables: [
-  HistoryItems,
-  Preferences,
-  Cookies
-], queries: {
-  "countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items',
-})
+@DriftDatabase(
+  tables: [HistoryItems, Preferences, Cookies],
+  queries: {"countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items'},
+)
 class DB extends _$DB {
   DB() : super(conn.connect());
 
   final Map<String, bool> isDownloadedCache = {};
 
   @override
-  int get schemaVersion => 4;
+  int get schemaVersion => 5;
 
   @override
-  MigrationStrategy get migration =>
-      MigrationStrategy(onCreate: (Migrator m) async {
-        await m.createAll();
-      }, onUpgrade: (Migrator m, int from, int to) async {
-        // add/update the preferences table
-        if (from < 2) {
-          await m.createTable(preferences);
-        } else if (from < 3) {
-          await m.alterTable(TableMigration(historyItems, columnTransformer: {
-            historyItems.downloadTime: historyItems.downloadTime.cast<int>(),
-          }));
-        }
+  MigrationStrategy get migration => MigrationStrategy(
+    onCreate: (Migrator m) async {
+      await m.createAll();
+    },
+    onUpgrade: (Migrator m, int from, int to) async {
+      // add/update the preferences table
+      if (from < 2) {
+        await m.createTable(preferences);
+      } else if (from < 3) {
+        await m.alterTable(
+          TableMigration(
+            historyItems,
+            columnTransformer: {
+              historyItems.downloadTime: historyItems.downloadTime.cast<int>(),
+            },
+          ),
+        );
+      }
 
-        // add the cookies table
-        if (from < 4) {
-          await m.createTable(cookies);
-        }
-      }, beforeOpen: (details) async {
-        await conn.validateDatabaseSchema(this);
-      });
+      // add the cookies table
+      if (from < 4) {
+        await m.createTable(cookies);
+      }
+
+      // add organizeByUsername column to preferences
+      if (from < 5) {
+        await m.addColumn(preferences, preferences.organizeByUsername);
+      }
+    },
+    beforeOpen: (details) async {
+      await conn.validateDatabaseSchema(this);
+    },
+  );
 
   Future<String?> getLastLoggedInUser() async {
     var query = select(preferences);
@@ -66,20 +76,22 @@ class DB extends _$DB {
     var loggedInUsers = await getLoggedInUsers();
     if (loggedInUsers == null) {
       var query = into(preferences);
-      await query.insert(PreferencesCompanion.insert(
-        lastLoggedInUser: Value(username),
-        loggedInUsers: Value(username),
-      ));
+      await query.insert(
+        PreferencesCompanion.insert(
+          lastLoggedInUser: Value(username),
+          loggedInUsers: Value(username),
+        ),
+      );
     } else {
       var query = update(preferences);
-      await query.write(PreferencesCompanion(
-        lastLoggedInUser: Value(username),
-        loggedInUsers: Value(
-          List.from(
-            Set.from(loggedInUsers)..add(username),
-          ).join(","),
+      await query.write(
+        PreferencesCompanion(
+          lastLoggedInUser: Value(username),
+          loggedInUsers: Value(
+            List.from(Set.from(loggedInUsers)..add(username)).join(","),
+          ),
         ),
-      ));
+      );
     }
   }
 
@@ -92,22 +104,28 @@ class DB extends _$DB {
     loggedInUsers = List.from(Set.from(loggedInUsers)..remove(username));
 
     var query = update(preferences);
-    await query.write(PreferencesCompanion(
-      lastLoggedInUser:
-          Value(loggedInUsers.isEmpty ? null : loggedInUsers.first),
-      loggedInUsers: Value(loggedInUsers.join(",")),
-    ));
+    await query.write(
+      PreferencesCompanion(
+        lastLoggedInUser: Value(
+          loggedInUsers.isEmpty ? null : loggedInUsers.first,
+        ),
+        loggedInUsers: Value(loggedInUsers.join(",")),
+      ),
+    );
 
     return loggedInUsers;
   }
 
   Future<List<HistoryItem>> getHistoryItems({int? offset}) async {
-    var query = select(historyItems)
-      ..orderBy([
-        (item) =>
-            OrderingTerm(expression: item.downloadTime, mode: OrderingMode.desc)
-      ])
-      ..limit(10, offset: offset);
+    var query =
+        select(historyItems)
+          ..orderBy([
+            (item) => OrderingTerm(
+              expression: item.downloadTime,
+              mode: OrderingMode.desc,
+            ),
+          ])
+          ..limit(10, offset: offset);
 
     return query.get();
   }
@@ -149,9 +167,32 @@ class DB extends _$DB {
     await query.go();
   }
 
+  Future<bool> getOrganizeByUsername() async {
+    var query = select(preferences);
+    var res = await query.getSingleOrNull();
+    if (res == null) {
+      return true; // default
+    }
+    return res.organizeByUsername;
+  }
+
+  Future<void> setOrganizeByUsername(bool value) async {
+    var existing = await select(preferences).getSingleOrNull();
+    if (existing == null) {
+      await into(
+        preferences,
+      ).insert(PreferencesCompanion.insert(organizeByUsername: Value(value)));
+    } else {
+      await (update(
+        preferences,
+      )).write(PreferencesCompanion(organizeByUsername: Value(value)));
+    }
+  }
+
   Future<Cookie?> getCookie(String username) =>
-      (select(cookies)..where((cookie) => cookie.username.equals(username)))
-          .getSingleOrNull();
+      (select(
+        cookies,
+      )..where((cookie) => cookie.username.equals(username))).getSingleOrNull();
 
   Future<void> createCookie(String username) async {
     if ((await getCookie(username)) != null) {
@@ -162,10 +203,10 @@ class DB extends _$DB {
   }
 
   Future<void> updateCookie(String username, CookiesCompanion changes) =>
-      (update(cookies)..where((cookie) => cookie.username.equals(username)))
-          .write(changes);
+      (update(cookies)
+        ..where((cookie) => cookie.username.equals(username))).write(changes);
 
   Future<void> deleteCookie(String username) =>
-      (delete(cookies)..where((cookie) => cookie.username.equals(username)))
-          .go();
+      (delete(cookies)
+        ..where((cookie) => cookie.username.equals(username))).go();
 }
