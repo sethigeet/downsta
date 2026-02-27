@@ -13,21 +13,23 @@ Future main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
   final db = DB();
-  var lastLoggedInUser = await db.getLastLoggedInUser();
-  if (lastLoggedInUser == null) {
-    final loggedInUsers = await db.getLoggedInUsers() ?? [];
-    if (loggedInUsers.isEmpty) {
-      lastLoggedInUser = "";
-    } else {
-      lastLoggedInUser = loggedInUsers[0];
-    }
+  final loggedInUsers = await db.getLoggedInUsers() ?? [];
+
+  // Determine initial user for the Api
+  String initialUser;
+  if (loggedInUsers.length > 1) {
+    // Multiple accounts: defer selection to AccountSelectionScreen
+    initialUser = "";
+  } else {
+    initialUser = await db.getLastLoggedInUser() ?? 
+        (loggedInUsers.isNotEmpty ? loggedInUsers[0] : "");
   }
 
   runApp(
     MultiProvider(
       providers: [
         ChangeNotifierProvider.value(
-          value: await Api.create(lastLoggedInUser, db),
+          value: await Api.create(initialUser, db),
         ),
         Provider<DB>(
           create: (context) => db,
@@ -35,13 +37,15 @@ Future main() async {
         ),
         ChangeNotifierProvider.value(value: await Downloader.create(db)),
       ],
-      child: const MyApp(),
+      child: MyApp(loggedInUsers: loggedInUsers),
     ),
   );
 }
 
 class MyApp extends StatefulWidget {
-  const MyApp({Key? key}) : super(key: key);
+  const MyApp({Key? key, required this.loggedInUsers}) : super(key: key);
+
+  final List<String> loggedInUsers;
 
   @override
   State<MyApp> createState() => _MyAppState();
@@ -89,12 +93,19 @@ class _MyAppState extends State<MyApp> {
 
   @override
   Widget build(BuildContext context) {
+    final showAccountSelection = widget.loggedInUsers.length > 1;
+
     return MaterialApp(
       title: 'Downsta',
       scaffoldMessengerKey: scaffoldMessengerKey,
       theme: AppTheme.darkTheme,
-      initialRoute: LoginScreen.routeName,
+      initialRoute: showAccountSelection
+          ? AccountSelectionScreen.routeName
+          : LoginScreen.routeName,
       routes: {
+        AccountSelectionScreen.routeName: (_) => AccountSelectionScreen(
+              loggedInUsers: widget.loggedInUsers,
+            ),
         LoginScreen.routeName: (_) => const LoginScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
