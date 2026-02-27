@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 
 import 'package:drift/drift.dart' show Value;
 import 'package:provider/provider.dart';
@@ -36,41 +37,42 @@ class _HomeScreenState extends State<HomeScreen> {
     }
   }
 
-  void _handleSharedData(String sharedData) async {
-    if (sharedData == "") {
-      return;
-    }
+  void _handleSharedData(String sharedData) {
+    if (sharedData.isEmpty) return;
+    _downloadFromUrl(sharedData);
+  }
 
+  Future<void> _downloadFromUrl(String url) async {
     try {
-      final shortCode = sharedData.split("/")[4];
+      final shortCode = url.split("/")[4];
       final api = Provider.of<Api>(context, listen: false);
       final downloader = Provider.of<Downloader>(context, listen: false);
       final db = Provider.of<DB>(context, listen: false);
       final postInfo = await api.getPostInfo(shortCode);
 
       if (postInfo == null) {
+        if (!mounted) return;
         showDialog<void>(
           // ignore: use_build_context_synchronously
           context: context,
-          builder:
-              (context) => AlertDialog(
-                title: const Text("Unable to retreive post!"),
-                content: const SingleChildScrollView(
-                  child: ListBody(
-                    children: [
-                      Text(
-                        "You may not follow this account or you have been blocked by this account!",
-                      ),
-                    ],
-                  ),
-                ),
-                actions: [
-                  TextButton(
-                    child: const Text("Okay"),
-                    onPressed: () => Navigator.pop(context),
+          builder: (context) => AlertDialog(
+            title: const Text("Unable to retrieve post!"),
+            content: const SingleChildScrollView(
+              child: ListBody(
+                children: [
+                  Text(
+                    "You may not follow this account or you have been blocked by this account!",
                   ),
                 ],
               ),
+            ),
+            actions: [
+              TextButton(
+                child: const Text("Okay"),
+                onPressed: () => Navigator.pop(context),
+              ),
+            ],
+          ),
         );
         return;
       }
@@ -79,39 +81,99 @@ class _HomeScreenState extends State<HomeScreen> {
       final urls = postInfo.urls;
       final username = postInfo.username;
       downloader.download(urls, username);
-      downloader
-          .getImgBytes(coverImgUrl)
-          .then(
-            (b) => db.saveItemToHistory(
-              HistoryItemsCompanion.insert(
-                postId: postInfo.id,
-                username: username,
-                coverImgBytes: Value(b),
-                imgUrls: urls.join(","),
-              ),
-            ),
-          );
+      downloader.getImgBytes(coverImgUrl).then(
+        (b) => db.saveItemToHistory(
+          HistoryItemsCompanion.insert(
+            postId: postInfo.id,
+            username: username,
+            coverImgBytes: Value(b),
+            imgUrls: urls.join(","),
+          ),
+        ),
+      );
     } catch (err) {
+      if (!mounted) return;
       showDialog<void>(
         // ignore: use_build_context_synchronously
         context: context,
-        builder:
-            (context) => AlertDialog(
-              title: const Text("Invalid URL shared!"),
-              content: SingleChildScrollView(
-                child: ListBody(
-                  children: [const Text("URL: "), Text(sharedData)],
-                ),
-              ),
-              actions: [
-                TextButton(
-                  child: const Text("Okay"),
-                  onPressed: () => Navigator.pop(context),
-                ),
-              ],
+        builder: (context) => AlertDialog(
+          title: const Text("Invalid URL!"),
+          content: SingleChildScrollView(
+            child: ListBody(
+              children: [const Text("URL: "), Text(url)],
             ),
+          ),
+          actions: [
+            TextButton(
+              child: const Text("Okay"),
+              onPressed: () => Navigator.pop(context),
+            ),
+          ],
+        ),
       );
     }
+  }
+
+  void _showPasteLinkDialog() {
+    final controller = TextEditingController();
+
+    showDialog<void>(
+      context: context,
+      builder: (context) => AlertDialog(
+        title: const Text("Download from URL"),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: controller,
+              decoration: const InputDecoration(
+                hintText: "https://www.instagram.com/p/...",
+                prefixIcon: Icon(Icons.link_rounded),
+              ),
+              autofocus: true,
+              onSubmitted: (value) {
+                if (value.isNotEmpty) {
+                  Navigator.pop(context);
+                  _downloadFromUrl(value);
+                }
+              },
+            ),
+            const SizedBox(height: 12),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: TextButton.icon(
+                onPressed: () async {
+                  final data = await Clipboard.getData(Clipboard.kTextPlain);
+                  if (data?.text != null && data!.text!.isNotEmpty) {
+                    controller.text = data.text!;
+                    controller.selection = TextSelection.fromPosition(
+                      TextPosition(offset: controller.text.length),
+                    );
+                  }
+                },
+                icon: const Icon(Icons.content_paste_rounded, size: 18),
+                label: const Text("Paste from clipboard"),
+              ),
+            ),
+          ],
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("Cancel"),
+          ),
+          TextButton(
+            onPressed: () {
+              if (controller.text.isNotEmpty) {
+                Navigator.pop(context);
+                _downloadFromUrl(controller.text);
+              }
+            },
+            child: const Text("Download"),
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -134,11 +196,10 @@ class _HomeScreenState extends State<HomeScreen> {
           Builder(
             builder: (context) {
               return IconButton(
-                onPressed:
-                    () => showSearch(
-                      context: context,
-                      delegate: SearchProfiles(api: api),
-                    ),
+                onPressed: () => showSearch(
+                  context: context,
+                  delegate: SearchProfiles(api: api),
+                ),
                 icon: const Icon(Icons.search_rounded),
               );
             },
@@ -147,6 +208,11 @@ class _HomeScreenState extends State<HomeScreen> {
         ],
       ),
       drawer: MyDrawer(user: me),
+      floatingActionButton: FloatingActionButton(
+        onPressed: _showPasteLinkDialog,
+        tooltip: "Download from URL",
+        child: const Icon(Icons.link_rounded),
+      ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: index,
         onDestinationSelected: (newIndex) => setState(() => index = newIndex),
