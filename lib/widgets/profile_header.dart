@@ -36,9 +36,9 @@ class _ProfileHeaderState extends State<ProfileHeader> {
                 final snackbarController = ScaffoldMessenger.of(
                   context,
                 ).showSnackBar(
-                  SnackBar(
-                    content: const Text("Fetching high quality profile pic..."),
-                    duration: const Duration(days: 365),
+                  const SnackBar(
+                    content: Text("Fetching high quality profile pic..."),
+                    duration: Duration(days: 365),
                   ),
                 );
                 final url = await api.getProfilePicUrl(username);

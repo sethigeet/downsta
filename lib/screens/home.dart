@@ -404,9 +404,9 @@ class MyDrawer extends StatelessWidget {
                     final snackbarController = ScaffoldMessenger.of(
                       context,
                     ).showSnackBar(
-                      SnackBar(
-                        content: const Text("Logging out..."),
-                        duration: const Duration(days: 365),
+                      const SnackBar(
+                        content: Text("Logging out..."),
+                        duration: Duration(days: 365),
                       ),
                     );
                     await api.logout(user.username);

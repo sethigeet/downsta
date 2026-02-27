@@ -286,9 +286,9 @@ class _LoginScreenState extends State<LoginScreen> {
     setState(() => _submitting = true);
 
     final snackbarController = ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        content: const Text("Trying to log in..."),
-        duration: const Duration(days: 365),
+      const SnackBar(
+        content: Text("Trying to log in..."),
+        duration: Duration(days: 365),
       ),
     );
 
