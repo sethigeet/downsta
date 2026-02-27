@@ -111,6 +111,7 @@ class _MyAppState extends State<MyApp> {
         ProfileScreen.routeName: (_) => const ProfileScreen(),
         PostScreen.routeName: (_) => const PostScreen(),
         ReelScreen.routeName: (_) => const ReelScreen(),
+        SettingsScreen.routeName: (_) => const SettingsScreen(),
         StoryScreen.routeName: (_) => const StoryScreen(),
         HighlightItemsScreen.routeName: (_) => const HighlightItemsScreen(),
         VideoScreen.routeName: (_) => const VideoScreen(),

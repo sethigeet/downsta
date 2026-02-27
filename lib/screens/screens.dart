@@ -6,5 +6,6 @@ export './login.dart';
 export './post.dart';
 export './profile.dart';
 export './reel.dart';
+export './settings.dart';
 export './story.dart';
 export './video.dart';

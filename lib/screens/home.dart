@@ -353,26 +353,7 @@ class MyDrawer extends StatelessWidget {
                   ),
                   title: Text("Settings", style: theme.textTheme.bodyLarge),
                   onTap: () {
-                    showDialog<void>(
-                      context: context,
-                      barrierDismissible: false,
-                      builder: (BuildContext context) {
-                        return AlertDialog(
-                          title: const Text("Not Implemented!"),
-                          content: const SingleChildScrollView(
-                            child: ListBody(children: [Text("TODO :)")]),
-                          ),
-                          actions: <Widget>[
-                            TextButton(
-                              child: const Text("Okay"),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
-                            ),
-                          ],
-                        );
-                      },
-                    );
+                    Navigator.pushNamed(context, SettingsScreen.routeName);
                   },
                 ),
                 ListTile(
