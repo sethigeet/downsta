@@ -1,5 +1,6 @@
 import 'package:drift/drift.dart';
 
+@DataClassName('Cookie')
 class Cookies extends Table {
   IntColumn get id => integer().autoIncrement()();
   TextColumn get username => text().withLength(max: 100)();
