@@ -1,3 +1,4 @@
+export './bookmark_card.dart';
 export './cached_image.dart';
 export './download_status_indicator.dart';
 export './downloaded_status.dart';

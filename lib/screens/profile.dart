@@ -38,6 +38,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     final username = args.username;
 
     final api = context.watch<Api>();
+    final db = Provider.of<DB>(context, listen: false);
     final user = api.cache.profiles[username];
     if (user == null) {
       api.getUserInfo(username);
@@ -49,6 +50,7 @@ class _ProfileScreenState extends State<ProfileScreen>
     }
 
     final isPrivate = user.isPrivate && !user.followedByViewer;
+    final isBookmarked = db.isBookmarkedCache[username] ?? false;
 
     return Scaffold(
       body: CustomScrollView(
@@ -58,7 +60,32 @@ class _ProfileScreenState extends State<ProfileScreen>
             snap: false,
             floating: true,
             title: Text(username),
-            actions: const [DownloadStatusIndicator()],
+            actions: [
+              IconButton(
+                icon: Icon(
+                  isBookmarked
+                      ? Icons.bookmark_rounded
+                      : Icons.bookmark_outline_rounded,
+                  color: isBookmarked
+                      ? theme.colorScheme.primary
+                      : null,
+                ),
+                tooltip: isBookmarked ? "Remove bookmark" : "Bookmark profile",
+                onPressed: () async {
+                  if (isBookmarked) {
+                    await db.removeBookmarkByUsername(username);
+                  } else {
+                    await db.addBookmark(
+                      BookmarksCompanion.insert(
+                        username: username,
+                      ),
+                    );
+                  }
+                  setState(() {});
+                },
+              ),
+              const DownloadStatusIndicator(),
+            ],
           ),
           SliverToBoxAdapter(child: ProfileHeader(user: user)),
           if (isPrivate)

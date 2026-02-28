@@ -6,16 +6,20 @@ import 'package:downsta/models/models.dart';
 part 'db.g.dart';
 
 @DriftDatabase(
-  tables: [HistoryItems, Preferences, Cookies],
-  queries: {"countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items'},
+  tables: [HistoryItems, Preferences, Cookies, Bookmarks],
+  queries: {
+    "countHistoryItems": 'SELECT COUNT(*) AS c FROM history_items',
+    "countBookmarks": 'SELECT COUNT(*) AS c FROM bookmarks',
+  },
 )
 class DB extends _$DB {
   DB() : super(conn.connect());
 
   final Map<String, bool> isDownloadedCache = {};
+  final Map<String, bool> isBookmarkedCache = {};
 
   @override
-  int get schemaVersion => 5;
+  int get schemaVersion => 6;
 
   @override
   MigrationStrategy get migration => MigrationStrategy(
@@ -45,6 +49,11 @@ class DB extends _$DB {
       // add organizeByUsername column to preferences
       if (from < 5) {
         await m.addColumn(preferences, preferences.organizeByUsername);
+      }
+
+      // add the bookmarks table
+      if (from < 6) {
+        await m.createTable(bookmarks);
       }
     },
     beforeOpen: (details) async {
@@ -165,6 +174,58 @@ class DB extends _$DB {
   Future<void> deleteItemFromHistory(int id) async {
     var query = delete(historyItems)..where((item) => item.id.equals(id));
     await query.go();
+  }
+
+  // ── Bookmarks ──
+
+  Future<List<Bookmark>> getBookmarks({int? offset}) async {
+    var query =
+        select(bookmarks)
+          ..orderBy([
+            (item) => OrderingTerm(
+              expression: item.bookmarkTime,
+              mode: OrderingMode.desc,
+            ),
+          ])
+          ..limit(10, offset: offset);
+
+    return query.get();
+  }
+
+  Future<int> getTotalBookmarks() async {
+    return countBookmarks().getSingle();
+  }
+
+  Future<bool> isProfileBookmarked(String username) async {
+    var cached = isBookmarkedCache[username];
+    if (cached != null) return cached;
+
+    var query = select(bookmarks)
+      ..where((item) => item.username.equals(username));
+    var res = await query.getSingleOrNull();
+    var isBookmarked = res != null;
+    isBookmarkedCache[username] = isBookmarked;
+    return isBookmarked;
+  }
+
+  Future<void> addBookmark(BookmarksCompanion item) async {
+    await into(bookmarks).insert(item);
+    isBookmarkedCache[item.username.value] = true;
+  }
+
+  Future<void> removeBookmark(int id) async {
+    final item =
+        await (select(bookmarks)
+          ..where((b) => b.id.equals(id))).getSingleOrNull();
+    if (item != null) {
+      isBookmarkedCache[item.username] = false;
+    }
+    await (delete(bookmarks)..where((b) => b.id.equals(id))).go();
+  }
+
+  Future<void> removeBookmarkByUsername(String username) async {
+    isBookmarkedCache[username] = false;
+    await (delete(bookmarks)..where((b) => b.username.equals(username))).go();
   }
 
   Future<bool> getOrganizeByUsername() async {

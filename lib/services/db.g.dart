@@ -1063,17 +1063,286 @@ class CookiesCompanion extends UpdateCompanion<Cookie> {
   }
 }
 
+class $BookmarksTable extends Bookmarks
+    with TableInfo<$BookmarksTable, Bookmark> {
+  @override
+  final GeneratedDatabase attachedDatabase;
+  final String? _alias;
+  $BookmarksTable(this.attachedDatabase, [this._alias]);
+  static const VerificationMeta _idMeta = const VerificationMeta('id');
+  @override
+  late final GeneratedColumn<int> id = GeneratedColumn<int>(
+    'id',
+    aliasedName,
+    false,
+    hasAutoIncrement: true,
+    type: DriftSqlType.int,
+    requiredDuringInsert: false,
+    defaultConstraints: GeneratedColumn.constraintIsAlways(
+      'PRIMARY KEY AUTOINCREMENT',
+    ),
+  );
+  static const VerificationMeta _usernameMeta = const VerificationMeta(
+    'username',
+  );
+  @override
+  late final GeneratedColumn<String> username = GeneratedColumn<String>(
+    'username',
+    aliasedName,
+    false,
+    additionalChecks: GeneratedColumn.checkTextLength(maxTextLength: 100),
+    type: DriftSqlType.string,
+    requiredDuringInsert: true,
+    defaultConstraints: GeneratedColumn.constraintIsAlways('UNIQUE'),
+  );
+  static const VerificationMeta _bookmarkTimeMeta = const VerificationMeta(
+    'bookmarkTime',
+  );
+  @override
+  late final GeneratedColumn<DateTime> bookmarkTime = GeneratedColumn<DateTime>(
+    'bookmark_time',
+    aliasedName,
+    false,
+    type: DriftSqlType.dateTime,
+    requiredDuringInsert: false,
+    defaultValue: currentDateAndTime,
+  );
+  @override
+  List<GeneratedColumn> get $columns => [id, username, bookmarkTime];
+  @override
+  String get aliasedName => _alias ?? actualTableName;
+  @override
+  String get actualTableName => $name;
+  static const String $name = 'bookmarks';
+  @override
+  VerificationContext validateIntegrity(
+    Insertable<Bookmark> instance, {
+    bool isInserting = false,
+  }) {
+    final context = VerificationContext();
+    final data = instance.toColumns(true);
+    if (data.containsKey('id')) {
+      context.handle(_idMeta, id.isAcceptableOrUnknown(data['id']!, _idMeta));
+    }
+    if (data.containsKey('username')) {
+      context.handle(
+        _usernameMeta,
+        username.isAcceptableOrUnknown(data['username']!, _usernameMeta),
+      );
+    } else if (isInserting) {
+      context.missing(_usernameMeta);
+    }
+    if (data.containsKey('bookmark_time')) {
+      context.handle(
+        _bookmarkTimeMeta,
+        bookmarkTime.isAcceptableOrUnknown(
+          data['bookmark_time']!,
+          _bookmarkTimeMeta,
+        ),
+      );
+    }
+    return context;
+  }
+
+  @override
+  Set<GeneratedColumn> get $primaryKey => {id};
+  @override
+  Bookmark map(Map<String, dynamic> data, {String? tablePrefix}) {
+    final effectivePrefix = tablePrefix != null ? '$tablePrefix.' : '';
+    return Bookmark(
+      id:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.int,
+            data['${effectivePrefix}id'],
+          )!,
+      username:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.string,
+            data['${effectivePrefix}username'],
+          )!,
+      bookmarkTime:
+          attachedDatabase.typeMapping.read(
+            DriftSqlType.dateTime,
+            data['${effectivePrefix}bookmark_time'],
+          )!,
+    );
+  }
+
+  @override
+  $BookmarksTable createAlias(String alias) {
+    return $BookmarksTable(attachedDatabase, alias);
+  }
+}
+
+class Bookmark extends DataClass implements Insertable<Bookmark> {
+  final int id;
+  final String username;
+  final DateTime bookmarkTime;
+  const Bookmark({
+    required this.id,
+    required this.username,
+    required this.bookmarkTime,
+  });
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    map['id'] = Variable<int>(id);
+    map['username'] = Variable<String>(username);
+    map['bookmark_time'] = Variable<DateTime>(bookmarkTime);
+    return map;
+  }
+
+  BookmarksCompanion toCompanion(bool nullToAbsent) {
+    return BookmarksCompanion(
+      id: Value(id),
+      username: Value(username),
+      bookmarkTime: Value(bookmarkTime),
+    );
+  }
+
+  factory Bookmark.fromJson(
+    Map<String, dynamic> json, {
+    ValueSerializer? serializer,
+  }) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return Bookmark(
+      id: serializer.fromJson<int>(json['id']),
+      username: serializer.fromJson<String>(json['username']),
+      bookmarkTime: serializer.fromJson<DateTime>(json['bookmarkTime']),
+    );
+  }
+  @override
+  Map<String, dynamic> toJson({ValueSerializer? serializer}) {
+    serializer ??= driftRuntimeOptions.defaultSerializer;
+    return <String, dynamic>{
+      'id': serializer.toJson<int>(id),
+      'username': serializer.toJson<String>(username),
+      'bookmarkTime': serializer.toJson<DateTime>(bookmarkTime),
+    };
+  }
+
+  Bookmark copyWith({int? id, String? username, DateTime? bookmarkTime}) =>
+      Bookmark(
+        id: id ?? this.id,
+        username: username ?? this.username,
+        bookmarkTime: bookmarkTime ?? this.bookmarkTime,
+      );
+  Bookmark copyWithCompanion(BookmarksCompanion data) {
+    return Bookmark(
+      id: data.id.present ? data.id.value : this.id,
+      username: data.username.present ? data.username.value : this.username,
+      bookmarkTime:
+          data.bookmarkTime.present
+              ? data.bookmarkTime.value
+              : this.bookmarkTime,
+    );
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('Bookmark(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('bookmarkTime: $bookmarkTime')
+          ..write(')'))
+        .toString();
+  }
+
+  @override
+  int get hashCode => Object.hash(id, username, bookmarkTime);
+  @override
+  bool operator ==(Object other) =>
+      identical(this, other) ||
+      (other is Bookmark &&
+          other.id == this.id &&
+          other.username == this.username &&
+          other.bookmarkTime == this.bookmarkTime);
+}
+
+class BookmarksCompanion extends UpdateCompanion<Bookmark> {
+  final Value<int> id;
+  final Value<String> username;
+  final Value<DateTime> bookmarkTime;
+  const BookmarksCompanion({
+    this.id = const Value.absent(),
+    this.username = const Value.absent(),
+    this.bookmarkTime = const Value.absent(),
+  });
+  BookmarksCompanion.insert({
+    this.id = const Value.absent(),
+    required String username,
+    this.bookmarkTime = const Value.absent(),
+  }) : username = Value(username);
+  static Insertable<Bookmark> custom({
+    Expression<int>? id,
+    Expression<String>? username,
+    Expression<DateTime>? bookmarkTime,
+  }) {
+    return RawValuesInsertable({
+      if (id != null) 'id': id,
+      if (username != null) 'username': username,
+      if (bookmarkTime != null) 'bookmark_time': bookmarkTime,
+    });
+  }
+
+  BookmarksCompanion copyWith({
+    Value<int>? id,
+    Value<String>? username,
+    Value<DateTime>? bookmarkTime,
+  }) {
+    return BookmarksCompanion(
+      id: id ?? this.id,
+      username: username ?? this.username,
+      bookmarkTime: bookmarkTime ?? this.bookmarkTime,
+    );
+  }
+
+  @override
+  Map<String, Expression> toColumns(bool nullToAbsent) {
+    final map = <String, Expression>{};
+    if (id.present) {
+      map['id'] = Variable<int>(id.value);
+    }
+    if (username.present) {
+      map['username'] = Variable<String>(username.value);
+    }
+    if (bookmarkTime.present) {
+      map['bookmark_time'] = Variable<DateTime>(bookmarkTime.value);
+    }
+    return map;
+  }
+
+  @override
+  String toString() {
+    return (StringBuffer('BookmarksCompanion(')
+          ..write('id: $id, ')
+          ..write('username: $username, ')
+          ..write('bookmarkTime: $bookmarkTime')
+          ..write(')'))
+        .toString();
+  }
+}
+
 abstract class _$DB extends GeneratedDatabase {
   _$DB(QueryExecutor e) : super(e);
   $DBManager get managers => $DBManager(this);
   late final $HistoryItemsTable historyItems = $HistoryItemsTable(this);
   late final $PreferencesTable preferences = $PreferencesTable(this);
   late final $CookiesTable cookies = $CookiesTable(this);
+  late final $BookmarksTable bookmarks = $BookmarksTable(this);
   Selectable<int> countHistoryItems() {
     return customSelect(
       'SELECT COUNT(*) AS c FROM history_items',
       variables: [],
       readsFrom: {historyItems},
+    ).map((QueryRow row) => row.read<int>('c'));
+  }
+
+  Selectable<int> countBookmarks() {
+    return customSelect(
+      'SELECT COUNT(*) AS c FROM bookmarks',
+      variables: [],
+      readsFrom: {bookmarks},
     ).map((QueryRow row) => row.read<int>('c'));
   }
 
@@ -1085,6 +1354,7 @@ abstract class _$DB extends GeneratedDatabase {
     historyItems,
     preferences,
     cookies,
+    bookmarks,
   ];
 }
 
@@ -1663,6 +1933,163 @@ typedef $$CookiesTableProcessedTableManager =
       Cookie,
       PrefetchHooks Function()
     >;
+typedef $$BookmarksTableCreateCompanionBuilder =
+    BookmarksCompanion Function({
+      Value<int> id,
+      required String username,
+      Value<DateTime> bookmarkTime,
+    });
+typedef $$BookmarksTableUpdateCompanionBuilder =
+    BookmarksCompanion Function({
+      Value<int> id,
+      Value<String> username,
+      Value<DateTime> bookmarkTime,
+    });
+
+class $$BookmarksTableFilterComposer extends Composer<_$DB, $BookmarksTable> {
+  $$BookmarksTableFilterComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnFilters<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnFilters(column),
+  );
+
+  ColumnFilters<DateTime> get bookmarkTime => $composableBuilder(
+    column: $table.bookmarkTime,
+    builder: (column) => ColumnFilters(column),
+  );
+}
+
+class $$BookmarksTableOrderingComposer extends Composer<_$DB, $BookmarksTable> {
+  $$BookmarksTableOrderingComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  ColumnOrderings<int> get id => $composableBuilder(
+    column: $table.id,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<String> get username => $composableBuilder(
+    column: $table.username,
+    builder: (column) => ColumnOrderings(column),
+  );
+
+  ColumnOrderings<DateTime> get bookmarkTime => $composableBuilder(
+    column: $table.bookmarkTime,
+    builder: (column) => ColumnOrderings(column),
+  );
+}
+
+class $$BookmarksTableAnnotationComposer
+    extends Composer<_$DB, $BookmarksTable> {
+  $$BookmarksTableAnnotationComposer({
+    required super.$db,
+    required super.$table,
+    super.joinBuilder,
+    super.$addJoinBuilderToRootComposer,
+    super.$removeJoinBuilderFromRootComposer,
+  });
+  GeneratedColumn<int> get id =>
+      $composableBuilder(column: $table.id, builder: (column) => column);
+
+  GeneratedColumn<String> get username =>
+      $composableBuilder(column: $table.username, builder: (column) => column);
+
+  GeneratedColumn<DateTime> get bookmarkTime => $composableBuilder(
+    column: $table.bookmarkTime,
+    builder: (column) => column,
+  );
+}
+
+class $$BookmarksTableTableManager
+    extends
+        RootTableManager<
+          _$DB,
+          $BookmarksTable,
+          Bookmark,
+          $$BookmarksTableFilterComposer,
+          $$BookmarksTableOrderingComposer,
+          $$BookmarksTableAnnotationComposer,
+          $$BookmarksTableCreateCompanionBuilder,
+          $$BookmarksTableUpdateCompanionBuilder,
+          (Bookmark, BaseReferences<_$DB, $BookmarksTable, Bookmark>),
+          Bookmark,
+          PrefetchHooks Function()
+        > {
+  $$BookmarksTableTableManager(_$DB db, $BookmarksTable table)
+    : super(
+        TableManagerState(
+          db: db,
+          table: table,
+          createFilteringComposer:
+              () => $$BookmarksTableFilterComposer($db: db, $table: table),
+          createOrderingComposer:
+              () => $$BookmarksTableOrderingComposer($db: db, $table: table),
+          createComputedFieldComposer:
+              () => $$BookmarksTableAnnotationComposer($db: db, $table: table),
+          updateCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                Value<String> username = const Value.absent(),
+                Value<DateTime> bookmarkTime = const Value.absent(),
+              }) => BookmarksCompanion(
+                id: id,
+                username: username,
+                bookmarkTime: bookmarkTime,
+              ),
+          createCompanionCallback:
+              ({
+                Value<int> id = const Value.absent(),
+                required String username,
+                Value<DateTime> bookmarkTime = const Value.absent(),
+              }) => BookmarksCompanion.insert(
+                id: id,
+                username: username,
+                bookmarkTime: bookmarkTime,
+              ),
+          withReferenceMapper:
+              (p0) =>
+                  p0
+                      .map(
+                        (e) => (
+                          e.readTable(table),
+                          BaseReferences(db, table, e),
+                        ),
+                      )
+                      .toList(),
+          prefetchHooksCallback: null,
+        ),
+      );
+}
+
+typedef $$BookmarksTableProcessedTableManager =
+    ProcessedTableManager<
+      _$DB,
+      $BookmarksTable,
+      Bookmark,
+      $$BookmarksTableFilterComposer,
+      $$BookmarksTableOrderingComposer,
+      $$BookmarksTableAnnotationComposer,
+      $$BookmarksTableCreateCompanionBuilder,
+      $$BookmarksTableUpdateCompanionBuilder,
+      (Bookmark, BaseReferences<_$DB, $BookmarksTable, Bookmark>),
+      Bookmark,
+      PrefetchHooks Function()
+    >;
 
 class $DBManager {
   final _$DB _db;
@@ -1673,4 +2100,6 @@ class $DBManager {
       $$PreferencesTableTableManager(_db, _db.preferences);
   $$CookiesTableTableManager get cookies =>
       $$CookiesTableTableManager(_db, _db.cookies);
+  $$BookmarksTableTableManager get bookmarks =>
+      $$BookmarksTableTableManager(_db, _db.bookmarks);
 }

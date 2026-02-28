@@ -435,6 +435,19 @@ class MyDrawer extends StatelessWidget {
                     Navigator.pushNamed(context, HistoryScreen.routeName);
                   },
                 ),
+                ListTile(
+                  leading: Icon(
+                    Icons.bookmark_outline_rounded,
+                    color: theme.colorScheme.onSurfaceVariant,
+                  ),
+                  title: Text(
+                    "Bookmarks",
+                    style: theme.textTheme.bodyLarge,
+                  ),
+                  onTap: () {
+                    Navigator.pushNamed(context, BookmarksScreen.routeName);
+                  },
+                ),
                 const Divider(),
                 ListTile(
                   leading: Icon(

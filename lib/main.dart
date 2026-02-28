@@ -107,6 +107,7 @@ class _MyAppState extends State<MyApp> {
               loggedInUsers: widget.loggedInUsers,
             ),
         LoginScreen.routeName: (_) => const LoginScreen(),
+        BookmarksScreen.routeName: (_) => const BookmarksScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
         PostScreen.routeName: (_) => const PostScreen(),
