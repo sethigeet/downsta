@@ -22,8 +22,8 @@ class Profile {
   }
 
   bool get isPrivate => _node["is_private"];
-  // bool get followedByViewer => _node["followed_by_viewer"];
-  bool get followedByViewer => true;
+  bool get followedByViewer =>
+      _node["friendship_status"]?["following"] ?? false;
 
   PaginatedResponse<PostV2> get posts => _posts;
 

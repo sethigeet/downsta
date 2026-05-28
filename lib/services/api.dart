@@ -72,6 +72,7 @@ abstract class ApiQueryHashes {
 abstract class ApiDocIds {
   static const posts = "7898261790222653";
   static const reels = "7845543455542541";
+  static const userInfo = "27299205503038170";
 }
 
 class Cache with DiagnosticableTreeMixin {
@@ -284,17 +285,15 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       return userInfo[username]!;
     }
 
-    // var res = await getMobileJson(
-    //   ApiUrls.userInfo,
-    //   queryParameters: {"username": username},
-    // );
-    // var profile = Profile(res["data"]["user"]);
+    final userId = await getUserId(username);
+    var res = await postDocIdJson(ApiDocIds.userInfo, {
+      "userID": userId,
+      "username": username,
+      "__relay_internal__pv__PolarisAIGMAccountLabelEnabledrelayprovider":
+          false,
+    }, referer: "https://www.instagram.com/");
+    var profile = Profile(res["data"]["user"]);
 
-    var res = await getMobileJson(
-      ApiUrls.userInfo2.replaceAll("{USERID}", await getUserId(username)),
-    );
-    var info = res["user"];
-    var profile = Profile(info);
     userInfo[username] = profile;
 
     await getPosts(username, force: true);
@@ -633,15 +632,14 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       queryParameters: queryParameters,
     );
 
-    var res = await client.get(
-      uri,
-      headers: {
-        ...defaultHeaders,
-        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
-        "X-CSRFToken": _csrfToken,
-      },
-    );
+    var headers = {
+      ...defaultHeaders,
+      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+      "X-CSRFToken": _csrfToken,
+    };
+
+    var res = await client.get(uri, headers: headers);
 
     // TODO: Figure out whether we need to save the cookies here or not
     // cookieJar.saveCookies(uri, res.headers["set-cookie"]);
@@ -761,8 +759,23 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     Map<String, dynamic> variables, {
     String host = "www.instagram.com",
     String referer = "www.instagram.com",
+    bool sendCookies = true,
   }) async {
     var uri = Uri(scheme: "https", host: host, path: "graphql/query");
+
+    var headers = {
+      ...defaultHeaders,
+      HttpHeaders.refererHeader: referer,
+      HttpHeaders.acceptHeader: "*/*",
+      HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+      "authority": "www.instagram.com",
+      "X-CSRFToken": _csrfToken,
+    };
+    if (sendCookies) {
+      headers[HttpHeaders.cookieHeader] = await cookieJar.getCookiesForHeader(
+        uri,
+      );
+    }
 
     var res = await client.post(
       uri,
@@ -772,15 +785,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         "server_timestamps": "true",
       },
       encoding: Encoding.getByName("x-www-form-urlencoded"),
-      headers: {
-        ...defaultHeaders,
-        HttpHeaders.refererHeader: referer,
-        HttpHeaders.acceptHeader: "*/*",
-        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
-        "authority": "www.instagram.com",
-        "X-CSRFToken": _csrfToken,
-      },
+      headers: headers,
     );
 
     // TODO: Figure out whether we need to save the cookies here or not
