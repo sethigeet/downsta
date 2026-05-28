@@ -106,7 +106,9 @@ class _MyAppState extends State<MyApp> {
         AccountSelectionScreen.routeName: (_) => AccountSelectionScreen(
               loggedInUsers: widget.loggedInUsers,
             ),
-        LoginScreen.routeName: (_) => const LoginScreen(),
+        LoginScreen.routeName: (context) => LoginScreen(
+              addingUser: ModalRoute.of(context)?.settings.arguments as bool?,
+            ),
         BookmarksScreen.routeName: (_) => const BookmarksScreen(),
         HomeScreen.routeName: (_) => const HomeScreen(),
         ProfileScreen.routeName: (_) => const ProfileScreen(),
