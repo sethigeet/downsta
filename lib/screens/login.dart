@@ -5,6 +5,7 @@ import 'package:provider/provider.dart';
 import 'package:downsta/screens/screens.dart';
 import 'package:downsta/services/services.dart';
 import 'package:downsta/theme.dart';
+import 'package:downsta/widgets/widgets.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key, this.addingUser}) : super(key: key);
@@ -293,14 +294,33 @@ class _LoginScreenState extends State<LoginScreen> {
     );
 
     final api = Provider.of<Api>(context, listen: false);
-    final res = await api.login(
+    final result = await api.login(
       _usernameFieldController.text,
       _passwordFieldController.text,
     );
     snackbarController.close();
 
-    if (res == null) {
+    if (result.success) {
       gotoHomeScreen();
+      return;
+    }
+
+    if (result.requiresChallenge) {
+      final challengeResult = await showDialog<bool>(
+        // ignore: use_build_context_synchronously
+        context: context,
+        barrierDismissible: false,
+        builder: (context) => ChallengeDialog(api: api),
+      );
+
+      if (challengeResult == true) {
+        gotoHomeScreen();
+        return;
+      }
+
+      if (mounted) {
+        setState(() => _submitting = false);
+      }
       return;
     }
 
@@ -316,7 +336,7 @@ class _LoginScreenState extends State<LoginScreen> {
         return AlertDialog(
           title: const Text("Login error!"),
           content: SingleChildScrollView(
-            child: ListBody(children: [Text(res)]),
+            child: ListBody(children: [Text(result.error ?? "Unknown error")]),
           ),
           actions: <Widget>[
             TextButton(

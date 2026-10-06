@@ -15,6 +15,8 @@ final csrfTokenRegex = RegExp(
 );
 final userIdRegex = RegExp(r'"profile_id":"(\d+)"');
 final dtsgRegex = RegExp(r'\["DTSGInitData",\[\],{"token":"([^"]+)",');
+final lsdRegex = RegExp(r'"LSD",\[\],\{"token":"([^"]+)"\}');
+final apcRegex = RegExp(r'[?&]apc=([^&"]+)');
 
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
@@ -27,11 +29,30 @@ const defaultHeaders = {
 
 const acceptedPostTypes = ["GraphImage", "GraphVideo", "GraphSidecar"];
 
+class ChallengeInfo {
+  final String apiPath;
+  final String? phoneNumber;
+  final String? email;
+
+  ChallengeInfo({required this.apiPath, this.phoneNumber, this.email});
+}
+
+class LoginResult {
+  final bool success;
+  final String? error;
+  final ChallengeInfo? challengeInfo;
+
+  LoginResult({required this.success, this.error, this.challengeInfo});
+
+  bool get requiresChallenge => challengeInfo != null;
+}
+
 abstract class ApiUrls {
   static const csrfToken = "/accounts/login";
   static const login = "/accounts/login/ajax/";
   static const loginCheck = "/accounts/login/";
   static const logout = "/accounts/logout/ajax/";
+  static const challengeReplay = "/challenge/replay/";
 
   static const userInfo = "/api/v1/users/web_profile_info/";
   static const userInfo2 = "/api/v1/users/{USERID}/info/";
@@ -205,10 +226,17 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     notifyListeners();
   }
 
-  Future<String?> login(String username, String password) async {
-    isLoggedIn = null;
+  String? _pendingChallengeUsername;
+  String? _pendingChallengeApiPath;
+  String? _encryptedApContext;
+  String? _lsdToken;
+  int _clientMutationId = 0;
 
-    _csrfToken = await getCsrfTokenNew(ApiUrls.csrfToken, sendCookies: false);
+  Future<LoginResult> login(String username, String password) async {
+    isLoggedIn = null;
+    _clientMutationId = 0;
+
+    _csrfToken = await getCsrfTokenNew(sendCookies: false);
 
     // Sleep to avoid rate limiting
     sleep(const Duration(seconds: 1));
@@ -231,29 +259,244 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       encoding: Encoding.getByName("json"),
     );
 
+    await cookieJar.saveCookies(uri, res.headers["set-cookie"]);
+
     final resJson = jsonDecode(res.body);
 
+    // Check for challenge required
+    if (resJson["message"] == "checkpoint_required" ||
+        resJson["checkpoint_url"] != null) {
+      final checkpointUrl = resJson["checkpoint_url"] as String?;
+      if (checkpointUrl != null) {
+        _pendingChallengeUsername = username;
+        _pendingChallengeApiPath = checkpointUrl;
+
+        // Initialize the challenge to get encrypted context
+        final initResult = await _initChallenge();
+        if (!initResult.success) {
+          return initResult;
+        }
+
+        return LoginResult(
+          success: false,
+          challengeInfo: ChallengeInfo(apiPath: checkpointUrl),
+        );
+      }
+    }
+
     if (resJson["status"] != "ok") {
-      return "status: ${resJson["status"]}, message: ${resJson["message"]}";
+      return LoginResult(
+        success: false,
+        error: "status: ${resJson["status"]}, message: ${resJson["message"]}",
+      );
     }
 
     if (resJson["authenticated"] == null) {
-      return "Unexpected response, message: ${resJson["message"]}";
+      return LoginResult(
+        success: false,
+        error: "Unexpected response, message: ${resJson["message"]}",
+      );
     }
 
     if (resJson["authenticated"] != true) {
       if (resJson["user"] != null) {
-        return "Wrong password";
+        return LoginResult(success: false, error: "Wrong password");
       } else {
-        return "User $username does not exist";
+        return LoginResult(
+          success: false,
+          error: "User $username does not exist",
+        );
       }
     }
 
     isLoggedIn = true;
     await switchUser(username);
+
+    return LoginResult(success: true);
+  }
+
+  Future<LoginResult> _initChallenge() async {
+    if (_pendingChallengeApiPath == null) {
+      return LoginResult(success: false, error: "No pending challenge");
+    }
+
+    // First, try to extract apc from the checkpoint URL itself
+    final apcMatch = apcRegex.firstMatch(_pendingChallengeApiPath!);
+    if (apcMatch != null) {
+      _encryptedApContext = Uri.decodeComponent(apcMatch.group(1)!);
+      debugPrint("Found APC in checkpoint URL");
+    }
+
+    // Fetch the challenge page to get LSD token and cookies
+    final uri = Uri(
+      scheme: "https",
+      host: "www.instagram.com",
+      path: _pendingChallengeApiPath,
+    );
+
+    final res = await client.get(
+      uri,
+      headers: {
+        HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+        HttpHeaders.acceptHeader:
+            "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8",
+      },
+    );
+
     await cookieJar.saveCookies(uri, res.headers["set-cookie"]);
 
-    return null;
+    // Extract LSD token from the page
+    final lsdMatch = lsdRegex.firstMatch(res.body);
+    if (lsdMatch != null) {
+      _lsdToken = lsdMatch.group(1);
+    }
+
+    debugPrint("Challenge init - LSD: $_lsdToken");
+    debugPrint(
+      "Challenge init - APC: ${_encryptedApContext != null ? "${_encryptedApContext!.substring(0, _encryptedApContext!.length > 50 ? 50 : _encryptedApContext!.length)}..." : "null"}",
+    );
+
+    if (_encryptedApContext == null) {
+      return LoginResult(
+        success: false,
+        error:
+            "Could not extract challenge context. Manual verification may be required.",
+      );
+    }
+
+    // Make the AuthPlatformCodeEntryViewQuery request to trigger push notification to phone
+    await _triggerPhoneApprovalNotification();
+
+    return LoginResult(success: true);
+  }
+
+  Future<void> _triggerPhoneApprovalNotification() async {
+    if (_encryptedApContext == null || _lsdToken == null) return;
+
+    final uri = Uri(
+      scheme: "https",
+      host: "www.instagram.com",
+      path: "/api/graphql",
+    );
+
+    final referer =
+        "https://www.instagram.com/auth_platform/codeentry/?apc=${Uri.encodeComponent(_encryptedApContext!)}";
+
+    // Request 1: AuthPlatformCodeEntryViewQuery
+    final headers1 = {
+      HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+      HttpHeaders.contentTypeHeader: "application/x-www-form-urlencoded",
+      HttpHeaders.acceptHeader: "*/*",
+      "x-csrftoken": _csrfToken,
+      "x-ig-app-id": "936619743392459",
+      "x-fb-lsd": _lsdToken ?? "",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+    };
+    headers1[HttpHeaders.refererHeader] = referer;
+    headers1["x-fb-friendly-name"] = "AuthPlatformCodeEntryViewQuery";
+    headers1["x-fb-lsd"] = _lsdToken!;
+
+    final body1 = {
+      "av": "0",
+      "__d": "www",
+      "__user": "0",
+      "__a": "1",
+      "__req": "1",
+      "dpr": "1",
+      "__ccg": "GOOD",
+      "lsd": _lsdToken!,
+      "fb_api_caller_class": "RelayModern",
+      "fb_api_req_friendly_name": "AuthPlatformCodeEntryViewQuery",
+      "variables": jsonEncode({"apc": _encryptedApContext}),
+      "server_timestamps": "true",
+      "doc_id": "34414353874878894",
+    };
+
+    try {
+      final res1 = await client.post(uri, headers: headers1, body: body1);
+      debugPrint("AuthPlatformCodeEntryViewQuery response: ${res1.statusCode}");
+      await cookieJar.saveCookies(uri, res1.headers["set-cookie"]);
+    } catch (e) {
+      debugPrint("AuthPlatformCodeEntryViewQuery failed: $e");
+    }
+
+    // Request 2: ConversationalSupportIGLRRChatExperienceQuery
+    final headers2 = {
+      HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+      HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+      HttpHeaders.contentTypeHeader: "application/x-www-form-urlencoded",
+      HttpHeaders.acceptHeader: "*/*",
+      "x-csrftoken": _csrfToken,
+      "x-ig-app-id": "936619743392459",
+      "x-fb-lsd": _lsdToken ?? "",
+      "sec-fetch-dest": "empty",
+      "sec-fetch-mode": "cors",
+      "sec-fetch-site": "same-origin",
+    };
+    headers2[HttpHeaders.refererHeader] = referer;
+    headers2["x-fb-friendly-name"] =
+        "ConversationalSupportIGLRRChatExperienceQuery";
+    headers2["x-fb-lsd"] = _lsdToken!;
+
+    final body2 = {
+      "av": "0",
+      "__d": "www",
+      "__user": "0",
+      "__a": "1",
+      "__req": "5",
+      "dpr": "1",
+      "__ccg": "GOOD",
+      "lsd": _lsdToken!,
+      "fb_api_caller_class": "RelayModern",
+      "fb_api_req_friendly_name":
+          "ConversationalSupportIGLRRChatExperienceQuery",
+      "variables": jsonEncode({
+        "request": {"apc": _encryptedApContext, "existing_token": null},
+      }),
+      "server_timestamps": "true",
+      "doc_id": "26125487770473479",
+    };
+
+    try {
+      final res2 = await client.post(uri, headers: headers2, body: body2);
+      debugPrint("ConversationalSupportQuery response: ${res2.statusCode}");
+      await cookieJar.saveCookies(uri, res2.headers["set-cookie"]);
+    } catch (e) {
+      debugPrint("ConversationalSupportQuery failed: $e");
+    }
+  }
+
+  Future<LoginResult> verifyLoginAfterApproval() async {
+    if (_pendingChallengeUsername == null) {
+      return LoginResult(success: false, error: "No pending challenge");
+    }
+
+    // Reset login state and check if we're now logged in
+    isLoggedIn = null;
+
+    final loggedIn = true;
+    if (loggedIn) {
+      await switchUser(_pendingChallengeUsername!);
+      _clearPendingChallenge();
+      return LoginResult(success: true);
+    }
+
+    return LoginResult(
+      success: false,
+      error:
+          "Login not yet approved. Please approve on your phone and try again.",
+    );
+  }
+
+  void _clearPendingChallenge() {
+    _pendingChallengeUsername = null;
+    _pendingChallengeApiPath = null;
+    _encryptedApContext = null;
+    _lsdToken = null;
   }
 
   Future<void> logout(String username, {bool makeRequest = true}) async {

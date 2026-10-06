@@ -1,5 +1,6 @@
 export './bookmark_card.dart';
 export './cached_image.dart';
+export './challenge_dialog.dart';
 export './download_status_indicator.dart';
 export './downloaded_status.dart';
 export './error_display.dart';
