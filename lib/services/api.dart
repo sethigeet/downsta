@@ -14,13 +14,15 @@ final csrfTokenRegex = RegExp(
   r'\["XIGSharedData", \[\], \{"raw": "\{\\"config\\":\{\\"csrf_token\\":\\"(.*)\\",\\"viewer',
 );
 final userIdRegex = RegExp(r'"profile_id":"(\d+)"');
+final dtsgRegex = RegExp(r'\["DTSGInitData",\[\],{"token":"([^"]+)",');
 
 const defaultHeaders = {
   HttpHeaders.acceptEncodingHeader: "gzip, deflate",
   HttpHeaders.acceptLanguageHeader: "en-US,en;q=0.8",
   "X-IG-APP-ID": "936619743392459",
+  "sec-fetch-site": "same-origin",
   "X-BLOKS-VERSION-ID":
-      "16b7bd25c6c06886d57c4d455265669345a2d96625385b8ee30026ac2dc5ed97",
+      "6a1a99aad521621204ad31915fc0c45ea5ef62c4d409c123a63ab00c26644d3c",
 };
 
 const acceptedPostTypes = ["GraphImage", "GraphVideo", "GraphSidecar"];
@@ -45,7 +47,7 @@ abstract class ApiUrls {
 
 abstract class ApiUserAgents {
   static const desktop =
-      "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/142.0.0.0 Safari/537.36";
+      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/145.0.0.0 Safari/537.36";
   static const mobile =
       "Instagram 361.0.0.35.82 (iPad13,8; iOS 18_0; en_US; en-US; scale=2.00; 2048x2732; 674117118) AppleWebKit/420";
 
@@ -70,9 +72,9 @@ abstract class ApiQueryHashes {
 }
 
 abstract class ApiDocIds {
-  static const posts = "7898261790222653";
+  static const posts = "26558563207156056";
   static const reels = "7845543455542541";
-  static const userInfo = "27299205503038170";
+  static const userInfo = "26672929172408668";
 }
 
 class Cache with DiagnosticableTreeMixin {
@@ -122,6 +124,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
   final DB db;
   CookieJar cookieJar;
   String _csrfToken;
+  String? _dtsg;
 
   final Cache cache = Cache();
   bool? isLoggedIn;
@@ -166,7 +169,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     }
 
     try {
-      _csrfToken = await getCsrfTokenNew(ApiUrls.csrfToken, sendCookies: false);
+      _csrfToken = await getCsrfTokenNew(sendCookies: false);
     } catch (_) {
       isLoggedIn = false;
       return false;
@@ -287,13 +290,16 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
     final userId = await getUserId(username);
     var res = await postDocIdJson(ApiDocIds.userInfo, {
-      "userID": userId,
-      "username": username,
-      "__relay_internal__pv__PolarisAIGMAccountLabelEnabledrelayprovider":
-          false,
-    }, referer: "https://www.instagram.com/");
+      "enable_integrity_filters": true,
+      "id": userId,
+      "__relay_internal__pv__PolarisCannesGuardianExperienceEnabledrelayprovider":
+          true,
+      "__relay_internal__pv__PolarisCASB976ProfileEnabledrelayprovider": false,
+      "__relay_internal__pv__PolarisWebSchoolsEnabledrelayprovider": false,
+      "__relay_internal__pv__PolarisRepostsConsumptionEnabledrelayprovider":
+          true,
+    }, useApiEndpoint: true);
     var profile = Profile(res["data"]["user"]);
-
     userInfo[username] = profile;
 
     await getPosts(username, force: true);
@@ -316,12 +322,21 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     Map<String, dynamic> variables = {
       "data": {
         "count": 12,
+        "include_reel_media_seen_timestamp": true,
         "include_relationship_info": true,
         "latest_besties_reel_media": true,
         "latest_reel_media": true,
       },
       "username": username,
-      "__relay_internal__pv__PolarisFeedShareMenurelayprovider": false,
+
+      "__relay_internal__pv__PolarisImmersiveFeedChainingEnabledrelayprovider":
+          true,
+      "__relay_internal__pv__PolarisAIGMMediaWebLabelEnabledrelayprovider":
+          false,
+      "__relay_internal__pv__PolarisAIGMAccountLabelEnabledrelayprovider":
+          false,
+      "__relay_internal__pv__PolarisReelsRecoDebugOverlayEnabledrelayprovider":
+          false,
     };
     if (nextMaxId != null) {
       variables["after"] = nextMaxId;
@@ -329,11 +344,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       variables["first"] = 12;
       variables["last"] = null;
     }
-    var res = await postDocIdJson(
-      ApiDocIds.posts,
-      variables,
-      referer: "https://www.instagram.com/$username/",
-    );
+    var res = await postDocIdJson(ApiDocIds.posts, variables);
     res = res["data"]["xdt_api__v1__feed__user_timeline_graphql_connection"];
     posts.addEdges(
       List<PostV2>.from(
@@ -686,24 +697,18 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     return postJson(path, host: "i.instagram.com", body: body);
   }
 
-  Future<dynamic> getCsrfTokenNew(
-    String path, {
-    String host = "www.instagram.com",
-    Map<String, dynamic>? queryParameters,
-    bool? sendCookies,
-  }) async {
+  Future<dynamic> getCsrfTokenNew({bool? sendCookies}) async {
     var uri = Uri(
       scheme: "https",
-      host: host,
-      path: path,
-      queryParameters: queryParameters,
+      host: "www.instagram.com",
+      path: ApiUrls.csrfToken,
     );
 
     var res = await client.get(
       uri,
       headers: {
         ...defaultHeaders,
-        HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
+        HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
         HttpHeaders.cookieHeader:
             sendCookies != null && sendCookies
                 ? await cookieJar.getCookiesForHeader(uri)
@@ -718,6 +723,31 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
 
     final start = res.body.indexOf("csrf_token");
     return res.body.substring(start, start + 47);
+  }
+
+  Future<String> getDtsg() async {
+    if (_dtsg != null) {
+      return _dtsg!;
+    }
+
+    var uri = Uri(scheme: "https", host: "www.instagram.com", path: "/");
+
+    var res = await client.get(
+      uri,
+      headers: {
+        ...defaultHeaders,
+        HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+        HttpHeaders.cookieHeader: await cookieJar.getCookiesForHeader(uri),
+      },
+    );
+
+    final match = dtsgRegex.firstMatch(res.body);
+    if (match != null) {
+      _dtsg = match.group(1)!;
+      return _dtsg!;
+    }
+
+    throw Exception("DTSG not found");
   }
 
   Future<dynamic> getGQLJson(
@@ -758,17 +788,21 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
     String docId,
     Map<String, dynamic> variables, {
     String host = "www.instagram.com",
-    String referer = "www.instagram.com",
+    String referer = "https://www.instagram.com/",
     bool sendCookies = true,
+    bool useApiEndpoint = false,
   }) async {
-    var uri = Uri(scheme: "https", host: host, path: "graphql/query");
+    var uri = Uri(
+      scheme: "https",
+      host: host,
+      path: useApiEndpoint ? "api/graphql" : "graphql/query",
+    );
 
     var headers = {
       ...defaultHeaders,
       HttpHeaders.refererHeader: referer,
       HttpHeaders.acceptHeader: "*/*",
       HttpHeaders.userAgentHeader: ApiUserAgents.getUserAgentByHost(host),
-      "authority": "www.instagram.com",
       "X-CSRFToken": _csrfToken,
     };
     if (sendCookies) {
@@ -783,6 +817,7 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
         "doc_id": docId,
         "variables": jsonEncode(variables),
         "server_timestamps": "true",
+        "fb_dtsg": await getDtsg(),
       },
       encoding: Encoding.getByName("x-www-form-urlencoded"),
       headers: headers,
