@@ -174,21 +174,22 @@ class Api with ChangeNotifier, DiagnosticableTreeMixin {
       isLoggedIn = false;
       return false;
     }
-    var req = http.Request("GET", uri);
-    req.followRedirects = false;
-    req.headers.addAll({
-      ...defaultHeaders,
-      HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
-      HttpHeaders.cookieHeader: CookieJar.getCookiesStringForHeaderFromCookies(
-        cookies,
-      ),
-      "X-CSRFToken": _csrfToken,
-    });
-    var res = await client.send(req);
-    if (res.isRedirect) {
-      isLoggedIn = false;
-      return false;
-    }
+
+    // var req = http.Request("GET", uri);
+    // req.followRedirects = false;
+    // req.headers.addAll({
+    //   ...defaultHeaders,
+    //   HttpHeaders.userAgentHeader: ApiUserAgents.desktop,
+    //   HttpHeaders.cookieHeader: CookieJar.getCookiesStringForHeaderFromCookies(
+    //     cookies,
+    //   ),
+    //   "X-CSRFToken": _csrfToken,
+    // });
+    // var res = await client.send(req);
+    // if (res.isRedirect) {
+    //   isLoggedIn = false;
+    //   return false;
+    // }
 
     isLoggedIn = true;
     return true;
